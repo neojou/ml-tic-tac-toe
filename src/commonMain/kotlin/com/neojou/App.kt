@@ -1,10 +1,9 @@
 package com.neojou
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,13 +16,13 @@ fun App(
     onCloseAbout: () -> Unit,
 ) {
     MaterialTheme {
-        Column(
+        Box(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            contentAlignment = Alignment.Center
         ) {
-            Text("Hello World")
-            Text("2026")
+            TicTacToeBoard(
+                modifier = Modifier.fillMaxWidth(0.75f) // 棋盤大小可自行調整
+            )
         }
 
         if (aboutOpen) {
