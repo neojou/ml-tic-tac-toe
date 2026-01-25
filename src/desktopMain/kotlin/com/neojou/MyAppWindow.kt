@@ -1,3 +1,6 @@
+package com.neojou
+
+
 import java.awt.GridBagLayout
 import javax.swing.*
 

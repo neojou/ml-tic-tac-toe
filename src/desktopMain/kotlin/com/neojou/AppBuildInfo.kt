@@ -1,3 +1,5 @@
+package com.neojou
+
 import java.util.Properties
 
 object AppBuildInfo {
@@ -12,6 +14,11 @@ object AppBuildInfo {
 
     val appName: String get() = props.getProperty("app.name", "ml-tic-tac-toe")
     val version: String get() = props.getProperty("app.version", "2026.1.25.1")
-    val buildTime: String get() = props.getProperty("app.buildTime", "<unknown>")
-}
+    val buildTime: String get() = props.getProperty("app.buildTime", "")
 
+    fun asBuildInfo(): BuildInfo = BuildInfo(
+        appName = appName,
+        version = version,
+        buildTime = buildTime
+    )
+}

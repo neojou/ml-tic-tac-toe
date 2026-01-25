@@ -1,36 +1,60 @@
-import java.util.Locale
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
-    kotlin("jvm") version "2.2.21"
+    kotlin("multiplatform") version "2.2.21"
+    id("org.jetbrains.compose") version "1.9.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
 }
 
 group = "com.neojou"
 version = "1.0-SNAPSHOT"
 
 repositories {
+    google()
     mavenCentral()
-}
-
-dependencies {
-    testImplementation(kotlin("test"))
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
 kotlin {
+    jvm("desktop")
     jvmToolchain(24)
+
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.material3)
+            }
+        }
+        val commonTest by getting {
+            dependencies { implementation(kotlin("test")) }
+        }
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
+        }
+    }
 }
 
-tasks.test {
-    useJUnitPlatform()
+compose.desktop {
+    application {
+        // 若你後續把 Main.kt 改成有 package，例如 com.neojou.MainKt，這裡也要跟著改
+        mainClass = "com.neojou.MainKt"
+    }
 }
+
+// ---------- build-info.properties (generated resource) ----------
+val buildInfoDir = layout.buildDirectory.dir("generated/resources/buildInfo")
 
 val genBuildInfo by tasks.registering {
-    val outDir = layout.buildDirectory.dir("generated/resources/buildInfo")
-    outputs.dir(outDir)
-
+    outputs.dir(buildInfoDir)
     doLast {
-        val dir = outDir.get().asFile
+        val dir = buildInfoDir.get().asFile
         dir.mkdirs()
 
         val buildTime = ZonedDateTime.now().format(
@@ -45,9 +69,18 @@ val genBuildInfo by tasks.registering {
     }
 }
 
-
-tasks.processResources {
-    dependsOn(genBuildInfo)
-    from(layout.buildDirectory.dir("generated/resources/buildInfo"))
+// 讓 desktopMain 的 resources 包含 buildInfoDir
+kotlin.sourceSets.named("desktopMain") {
+    resources.srcDir(buildInfoDir)
 }
 
+// Gradle 9.x：明確宣告 consumer tasks 依賴 producer task，避免 implicit dependency 驗證失敗
+tasks.named<ProcessResources>("desktopProcessResources") {
+    dependsOn(genBuildInfo)
+}
+tasks.named<ProcessResources>("processDesktopMainResources") {
+    dependsOn(genBuildInfo)
+}
+tasks.named("compileKotlinDesktop") {
+    dependsOn(genBuildInfo)
+}
