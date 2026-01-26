@@ -7,16 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,13 +27,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-data class TicTacToeViewState(
-    val title: String,
-    val subtitle: String? = null,
-    val hint: String = "Use Mouse to Click",
-    val isResult: Boolean = false
-)
-
 @Composable
 fun TicTacToeScreen(
     board: BoardStatus,
@@ -45,30 +36,33 @@ fun TicTacToeScreen(
     onCellClick: (Int) -> Unit,
     onNewGame: () -> Unit,
 ) {
-    val topBarHeight = 40.dp
-    val bottomBarHeight = 120.dp
-
-    Column(modifier = modifier.fillMaxSize()) {
-        TopMenuBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(topBarHeight),
-            onNewGame = onNewGame
-        )
-
-        // 中間區塊：吃剩餘高度，但至少留一個合理高度，避免初始 0
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopMenuBar(
+                modifier = Modifier.fillMaxWidth(),
+                onNewGame = onNewGame
+            )
+        },
+        bottomBar = {
+            BottomBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                viewState = viewState
+            )
+        }
+    ) { innerPadding ->
         BoxWithConstraints(
             modifier = Modifier
-                .weight(1f, fill = true)
-                .fillMaxWidth()
-                .heightIn(min = 180.dp)
+                .fillMaxSize()
+                .padding(innerPadding)
                 .clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
-            // 只依中間區塊 constraints 決定棋盤大小，這樣 bottom 一定不會被棋盤吃掉
+            // 只依 content 的 constraints 決定棋盤大小（避免吃到 top/bottom 的空間）
             val side = minOf(maxWidth, maxHeight) * 0.92f
-
-            // 假如 maxHeight 初始仍偶發 0，就給個保底，至少會顯示棋盤
+            // 保底：避免偶發 constraints 為 0 時棋盤不顯示
             val safeSide = if (side <= 0.dp) 180.dp else side
 
             TicTacToeBoard(
@@ -79,17 +73,6 @@ fun TicTacToeScreen(
                 }
             )
         }
-
-        // 如果中間區被縮得很小，Spacer 會吃掉多餘空間，bottom 仍固定在底部
-        Spacer(modifier = Modifier.height(0.dp))
-
-        BottomBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(bottomBarHeight)
-                .padding(vertical = 6.dp),
-            viewState = viewState
-        )
     }
 }
 
@@ -143,16 +126,21 @@ private fun BottomBar(
         ) {
             Text(
                 text = viewState.title,
-                style = if (viewState.isResult) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                style = if (viewState.isResult)
+                    MaterialTheme.typography.titleLarge
+                else
+                    MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
             Text(
                 text = viewState.subtitle ?: " ",
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
             Text(
                 text = viewState.hint,
                 style = MaterialTheme.typography.bodyMedium,
