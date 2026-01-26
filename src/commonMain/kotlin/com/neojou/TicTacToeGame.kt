@@ -1,12 +1,23 @@
 package com.neojou
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
 @Composable
 fun TicTacToeGame(modifier: Modifier = Modifier) {
     var state by remember { mutableStateOf(GameState()) }
-    val aiPlayer = remember { FirstEmptyAIPlayer() } // 之後可換更強的 AI
+
+    // 之後可換更強的 AI；若 AI 本身無狀態，這樣記住一個實例即可
+    val aiPlayer = remember { FirstEmptyAIPlayer() }
+
+    fun newGame() {
+        state = GameState()
+        MyLog.add("New game")
+    }
 
     fun onCellClick(pos: Int) {
         val update = TicTacToeEngine.onCellClick(state, pos, aiPlayer)
@@ -20,6 +31,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         board = state.board,
         viewState = viewState,
         modifier = modifier,
-        onCellClick = ::onCellClick
+        onCellClick = ::onCellClick,
+        onNewGame = ::newGame
     )
 }

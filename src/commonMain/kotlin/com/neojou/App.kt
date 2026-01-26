@@ -12,12 +12,9 @@ fun App(
     aboutOpen: Boolean,
     onOpenAbout: () -> Unit,
     onCloseAbout: () -> Unit,
-    gameKey: Int,                 // 新增
 ) {
     MaterialTheme {
-        key(gameKey) {
-            TicTacToeGame(modifier = Modifier.fillMaxSize())
-        }
+        TicTacToeGame(modifier = Modifier.fillMaxSize())
 
         if (aboutOpen) {
             AboutDialog(buildInfo = buildInfo, onClose = onCloseAbout)
