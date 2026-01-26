@@ -44,6 +44,8 @@ fun TicTacToeBoard(
                 }
             }
     ) {
+        if (size.width <= 0f || size.height <= 0f) return@Canvas  // 新增：避免 0 size 錯誤
+
         val w = size.width
         val h = size.height
         val stroke = lineWidth.toPx()

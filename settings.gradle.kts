@@ -15,8 +15,8 @@ dependencyResolutionManagement {
     }
 }
 
+rootProject.name = "ml-tic-tac-toe"  // 設定根專案名稱
+
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
-
-rootProject.name = "ml-tic-tac-toe"
