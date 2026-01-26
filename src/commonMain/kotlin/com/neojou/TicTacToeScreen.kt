@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 data class TicTacToeViewState(
@@ -42,54 +45,51 @@ fun TicTacToeScreen(
     onCellClick: (Int) -> Unit,
     onNewGame: () -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    val topBarHeight = 40.dp
+    val bottomBarHeight = 120.dp
 
-        // Top "menu bar"：像傳統選單列（左上角 Game ▾，點開有 New）
+    Column(modifier = modifier.fillMaxSize()) {
         TopMenuBar(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(topBarHeight),
             onNewGame = onNewGame
         )
 
-        // 7/10：棋盤
-        Box(
+        // 中間區塊：吃剩餘高度，但至少留一個合理高度，避免初始 0
+        BoxWithConstraints(
             modifier = Modifier
-                .weight(7f)
+                .weight(1f, fill = true)
                 .fillMaxWidth()
+                .heightIn(min = 180.dp)
                 .clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
-            BoxWithConstraints {
-                val side = if (maxWidth < maxHeight) maxWidth else maxHeight
-                TicTacToeBoard(
-                    bs = board,
-                    modifier = Modifier.size(side * 0.95f),
-                    onCellClick = { pos ->
-                        if (clickEnabled) onCellClick(pos)
-                    }
-                )
-            }
+            // 只依中間區塊 constraints 決定棋盤大小，這樣 bottom 一定不會被棋盤吃掉
+            val side = minOf(maxWidth, maxHeight) * 0.92f
+
+            // 假如 maxHeight 初始仍偶發 0，就給個保底，至少會顯示棋盤
+            val safeSide = if (side <= 0.dp) 180.dp else side
+
+            TicTacToeBoard(
+                bs = board,
+                modifier = Modifier.size(safeSide),
+                onCellClick = { pos ->
+                    if (clickEnabled) onCellClick(pos)
+                }
+            )
         }
 
-        // 1/5 (=2/10)：訊息
-        Box(
+        // 如果中間區被縮得很小，Spacer 會吃掉多餘空間，bottom 仍固定在底部
+        Spacer(modifier = Modifier.height(0.dp))
+
+        BottomBar(
             modifier = Modifier
-                .weight(2f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (viewState.isResult) {
-                    Text(viewState.title, style = MaterialTheme.typography.titleLarge)
-                } else {
-                    Text(viewState.title, style = MaterialTheme.typography.titleMedium)
-                }
-                viewState.subtitle?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-                Text(viewState.hint, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+                .fillMaxWidth()
+                .height(bottomBarHeight)
+                .padding(vertical = 6.dp),
+            viewState = viewState
+        )
     }
 }
 
@@ -102,12 +102,10 @@ private fun TopMenuBar(
 
     Row(
         modifier = modifier
-            .height(40.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Anchor：把「Game ▾」包在 Box，DropdownMenu 也放同一個 Box 內（最穩）
         Box {
             Text(
                 text = "Game ▾",
@@ -129,6 +127,38 @@ private fun TopMenuBar(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BottomBar(
+    modifier: Modifier = Modifier,
+    viewState: TicTacToeViewState,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = viewState.title,
+                style = if (viewState.isResult) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = viewState.subtitle ?: " ",
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = viewState.hint,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

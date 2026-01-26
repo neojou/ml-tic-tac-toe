@@ -2,17 +2,20 @@ package com.neojou
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.min
 
 @Composable
@@ -27,11 +30,10 @@ fun TicTacToeBoard(
 
     Canvas(
         modifier = modifier
-            .aspectRatio(1f)
             .onSizeChanged { boardSize = it }
-            .pointerInput(Unit) {
+            // 重要：用 boardSize 當 key，resize 時 pointerInput 會重啟，命中區才會更新
+            .pointerInput(boardSize) {
                 detectTapGestures { p ->
-                    // 將點擊座標轉成 (row, col) -> pos
                     val cellW = boardSize.width / 3f
                     val cellH = boardSize.height / 3f
                     if (cellW <= 0f || cellH <= 0f) return@detectTapGestures
@@ -46,7 +48,6 @@ fun TicTacToeBoard(
         val h = size.height
         val stroke = lineWidth.toPx()
 
-        // 1) 畫井字線（保留你原本的寫法）
         val x1 = w / 3f
         val x2 = w * 2f / 3f
         val y1 = h / 3f
@@ -57,7 +58,6 @@ fun TicTacToeBoard(
         drawLine(lineColor, Offset(0f, y1), Offset(w, y1), strokeWidth = stroke)
         drawLine(lineColor, Offset(0f, y2), Offset(w, y2), strokeWidth = stroke)
 
-        // 2) 依 bs 畫 O / X
         val cellW = w / 3f
         val cellH = h / 3f
         val cellMin = min(cellW, cellH)
@@ -66,7 +66,7 @@ fun TicTacToeBoard(
         for (pos in 0..8) {
             when (bs[pos]) {
                 0 -> Unit
-                1 -> { // O
+                1 -> {
                     val r = pos / 3
                     val c = pos % 3
                     val cx = c * cellW + cellW / 2f
@@ -78,7 +78,7 @@ fun TicTacToeBoard(
                         style = Stroke(width = stroke)
                     )
                 }
-                2 -> { // X
+                2 -> {
                     val r = pos / 3
                     val c = pos % 3
                     val left = c * cellW
