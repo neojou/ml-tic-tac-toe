@@ -17,10 +17,13 @@ object TicTacToeEngine {
         // 若已啟用 AI，且現在輪到 X，忽略人類點擊（避免「搶下 X」）
         if (aiPlayer != null && prev.turn == 2) return GameUpdate(prev)
 
-        // 先套用人類這一步
+        // 人類下
         val humanUpdate = applyMove(prev, pos, actor = "Mouse Click")
-        if (humanUpdate.state == prev) return humanUpdate // 無效點擊（點到已有棋子等）
-        if (humanUpdate.state.gameOver) return humanUpdate
+        if (humanUpdate.state == prev) return humanUpdate
+        if (humanUpdate.state.gameOver) {
+            aiPlayer?.addLastMove(humanUpdate.state.board)
+            return humanUpdate
+        }
 
         // 若啟用 AI 且下一手輪到 X，讓 AI 走一步
         if (aiPlayer != null && humanUpdate.state.turn == 2) {
