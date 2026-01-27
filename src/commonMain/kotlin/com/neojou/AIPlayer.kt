@@ -12,4 +12,6 @@ interface AIPlayer {
      * 預設不做事；有記錄功能的 AI 再 override。
      */
     fun addLastMove(board: BoardStatus) { return }
+
+    fun refine(iGameResult: Int) { return }
 }

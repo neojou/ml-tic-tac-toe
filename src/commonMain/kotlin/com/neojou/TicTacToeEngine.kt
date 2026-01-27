@@ -65,20 +65,20 @@ object TicTacToeEngine {
         val winner = TicTacToeRules.checkWinner(nextBoard)
         if (winner == 1) {
             return GameUpdate(
-                prev.copy(board = nextBoard, moves = moves2, gameOver = true, gameResult = "O is the winner"),
+                prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 1, gameResult = "O is the winner"),
                 logs + "O is the winner"
             )
         }
         if (winner == 2) {
             return GameUpdate(
-                prev.copy(board = nextBoard, moves = moves2, gameOver = true, gameResult = "X is the winner"),
+                prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 2, gameResult = "X is the winner"),
                 logs + "X is the winner"
             )
         }
 
         if (TicTacToeRules.isDraw(moves2, winner)) {
             return GameUpdate(
-                prev.copy(board = nextBoard, moves = moves2, gameOver = true, gameResult = "Draw"),
+                prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 0, gameResult = "Draw"),
                 logs + "Draw"
             )
         }

@@ -4,6 +4,7 @@ private fun boardToString(b: BoardStatus): String =
     b.copyArray().joinToString(prefix = "[", postfix = "]", separator = ",")
 
 class QSTable {
+
     private val qs: HashMap<BoardStatus, PTable> = HashMap()
 
     fun clear() = qs.clear()
@@ -28,8 +29,6 @@ class QSTable {
      */
     fun markChosen(sa: BoardStatus, chosenPos: Int, chosenWeight: Int = 2) {
         val pt = getOrCreate(sa)
-        // pt might not be built yet (caller should usually ensureBuilt first),
-        // but setWeightMax is still safe.
         pt.setWeightMax(chosenPos, chosenWeight)
     }
 

@@ -12,7 +12,8 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     var state by remember { mutableStateOf(GameState()) }
 
     // 之後可換更強的 AI；若 AI 本身無狀態，這樣記住一個實例即可
-    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
+//    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
+    val aiPlayer = remember { QSTableAIPlayer() }
 
     fun newGame() {
         state = GameState()
@@ -24,6 +25,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         update.logs.forEach { MyLog.add(it) }
         state = update.state
         if (state.gameOver) {
+            aiPlayer.refine(state.iGameResult)
             aiPlayer.showRecords()
         }
     }

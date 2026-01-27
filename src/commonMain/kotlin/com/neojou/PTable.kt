@@ -49,10 +49,6 @@ class PTable(
         totalWeight += (newWeight - old)
     }
 
-    /**
-     * Useful for your current "default=1, chosen=2" logic:
-     * never downgrade a weight accidentally.
-     */
     fun setWeightMax(pos: Int, newWeight: Int) {
         val old = getWeight(pos)
         if (newWeight > old) setWeight(pos, newWeight)
@@ -64,10 +60,6 @@ class PTable(
         setWeight(pos, nw)
     }
 
-    /**
-     * Weighted random sampling by weights (linear proportional).
-     * Return null when totalWeight == 0 (no legal moves / not built / all zero).
-     */
     fun sampleWeighted(random: Random = Random): Int? {
         val t = totalWeight
         if (t <= 0) return null
@@ -82,9 +74,6 @@ class PTable(
         return null
     }
 
-    /**
-     * Exploitation helper: choose argmax, break ties uniformly at random.
-     */
     fun argMax(random: Random = Random): Int? {
         var bestPos: Int? = null
         var bestW = 0
