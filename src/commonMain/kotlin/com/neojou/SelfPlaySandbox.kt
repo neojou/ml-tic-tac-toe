@@ -24,47 +24,53 @@ object SelfPlaySandbox {
         repeat(loops) { loopIndex ->
             MyLog.add("Starting loop ${loopIndex + 1}/$loops (eachTimes=$eachTimes)")
 
-            // 第一輪：自玩（全部蒐集並 refine）
-            val allEpisodes = AllEpisodes()
+// 第一輪：自玩（aiO vs aiX）
+            val selfPlayEpisodes = AllEpisodes()
             repeat(eachTimes) { i ->
                 val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiX, true)
                 if (aiWin) selfPlayWins++
 
-                // 自玩：全部加入（無論輸贏）
-                allEpisodes.add(aiEpisode, finalState.iGameResult)
+                // 自玩：加入 aiO 的 episode + myType
+                selfPlayEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
+
+                // 自玩時，也要加入 aiX 的 episode（因為雙方都要學）
+                selfPlayEpisodes.add(aiX.episode, finalState.iGameResult, aiX.myType)
 
                 val completed = (loopIndex * eachTimes * 3) + i + 1
                 onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
             }
+            selfPlayEpisodes.refineAll(sharedTable)
 
-            // 第二輪：AI 後手 vs random 先手（只輸才蒐集）
+
+// 第二輪：AI 後手 vs random 先手（只輸才蒐集）
+            val vsRandomAfterEpisodes = AllEpisodes()
             repeat(eachTimes) { i ->
                 val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = false)
                 if (aiWin) vsRandomAfterWins++
 
-                // 只在 AI 輸時加入 episode（aiWin == false）
                 if (!aiWin) {
-                   allEpisodes.add(aiEpisode, finalState.iGameResult)
+                //    vsRandomAfterEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
                 }
 
                 val completed = (loopIndex * eachTimes * 3) + eachTimes + i + 1
                 onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
             }
+            vsRandomAfterEpisodes.refineAll(sharedTable)
 
-            // 第三輪：AI 先手 vs random 後手（只輸才蒐集）
+// 第三輪：AI 先手 vs random 後手（只輸才蒐集）
+            val vsRandomFirstEpisodes = AllEpisodes()
             repeat(eachTimes) { i ->
                 val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = true)
                 if (aiWin) vsRandomFirstWins++
 
-                // 只在 AI 輸時加入 episode
                 if (!aiWin) {
-                    allEpisodes.add(aiEpisode, finalState.iGameResult)
+                //    vsRandomFirstEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
                 }
 
                 val completed = (loopIndex * eachTimes * 3) + eachTimes * 2 + i + 1
                 onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
             }
-            allEpisodes.refineAll(sharedTable)
+            vsRandomFirstEpisodes.refineAll(sharedTable)
 
             MyLog.add("Loop ${loopIndex + 1} finished. Current stats: SelfPlay ${selfPlayWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
                     "VsRandom After ${vsRandomAfterWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
@@ -110,12 +116,11 @@ object SelfPlaySandbox {
     }
 }
 
-// AllEpisodes 和 SelfPlayStats 保持不變
 class AllEpisodes {
-    private val episodes = mutableListOf<Pair<Episode, Int>>()
+    private val episodes = mutableListOf<Triple<Episode, Int, Int>>()  // (episode, outcome, myType)
 
-    fun add(episode: Episode, outcome: Int) {
-        episodes.add(episode to outcome)
+    fun add(episode: Episode, outcome: Int, myType: Int) {
+        episodes.add(Triple(episode, outcome, myType))
     }
 
     fun clear() {
@@ -123,15 +128,15 @@ class AllEpisodes {
     }
 
     fun refineAll(table: QSTable) {
-        episodes.forEach { (episode, outcome) ->
-            episode.refine(table, outcome)
+        episodes.forEach { (episode, outcome, myType) ->
+            episode.refine(table, outcome, myType = myType)  // 傳入 myType
             var current = episode
             repeat(3) {
                 current = current.clockwise()
-                current.refine(table, outcome)
+                current.refine(table, outcome, myType = myType)
             }
         }
-        MyLog.add("Batch refine completed: ${episodes.size} episodes processed (only losses for vs random)")
+        MyLog.add("Batch refine completed: ${episodes.size} episodes processed (myType-aware)")
     }
 }
 

@@ -25,9 +25,6 @@ class QSTableAIPlayer(
 
     override fun chooseMove(board: BoardStatus): Int? {
 
-        // 新增：計算動態 temperature (衰減探索：從 1.0 降到 0.1，基於全域遊戲計數)
-        val currentTemp = max(0.1, 1.0 - globalGames / 10000.0)
-
         // --- (A) 記錄對手那一步：S_prev -> board ---
         val sPrev = lastAfterMyMove ?: emptyS0
         val oppPos = tryGetSingleMovePosOrNull(sPrev, board)
@@ -50,7 +47,7 @@ class QSTableAIPlayer(
         val pt = table.ensureBuilt(sa, legal2, defaultWeight = 1)
 
         //val myPos = samplePosBySoftmax(pt, legal2, temperature) ?: return null
-        val myPos = samplePosByLinear(pt, legal2, currentTemp) ?: return null // 新增：用動態 currentTemp
+        val myPos = samplePosByLinear(pt, legal2, temperature) ?: return null
 
         episode.append(sa, myPos, legal2, playerType = myType)
 
@@ -63,11 +60,13 @@ class QSTableAIPlayer(
      * 遊戲結束時呼叫：按你的規則加分，之後再印出紀錄
      */
     override fun refine(iGameResult: Int) {
-        episode.refine(table, iGameResult)
+        // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新
+        episode.refine(table, iGameResult, myType = myType)
+        // ... 旋轉部分不變
         var currentEpisode = episode
         repeat(3) { _ ->  // + 3 旋轉
             currentEpisode = currentEpisode.clockwise()
-            currentEpisode.refine(table, iGameResult)
+            currentEpisode.refine(table, iGameResult, myType)
         }
         globalGames++  // 每局結束後全域計數 +1 (觸發 temperature decay)
     }

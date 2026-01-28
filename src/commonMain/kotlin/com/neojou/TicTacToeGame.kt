@@ -71,8 +71,8 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
 
     fun onGoHome() {
         // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新。
-        val loops = 5      // 大循環 5 次
-        val eachTimes = 200  // 每輪每種模式跑 200 盤
+        val loops = 10000      // 大循環 5 次
+        val eachTimes = 1  // 每輪每種模式跑 200 盤
         MyLog.add("GoHome clicked: starting $loops loops × $eachTimes each (total ~${loops * eachTimes * 3} games)...")
 
         scope.launch {

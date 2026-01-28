@@ -58,4 +58,64 @@ object BoardAnalyze {
 
     fun newBoardStatus(si: BoardStatus, pos: Int, mark: Mark): BoardStatus =
         newBoardStatus(si, pos, mark.value)
+
+// BoardAnalyze.kt 新增
+
+    /**
+     * 判斷在這個狀態下，如果下在 pos，是否會阻擋對方即將完成的連線（即對方有兩個同色且空一格的威脅）
+     * 返回 true 表示這步是「關鍵阻擋」
+     */
+    fun isBlockingThreat(board: BoardStatus, pos: Int, myType: Int): Boolean {
+        if (board[pos] != 0) return false
+        val opponent = if (myType == 1) 2 else 1
+
+        // 模擬下這步
+        val tempBoard = BoardAnalyze.newBoardStatus(board, pos, myType)
+
+        // 檢查對方是否還有「兩個同色 + 空一格」的威脅（即下完後對方無法立即贏）
+        // 這裡簡化：檢查所有可能的三連線，如果原本有威脅且現在被擋
+        val lines = listOf(
+            listOf(0, 1, 2), listOf(3, 4, 5), listOf(6, 7, 8), // 橫
+            listOf(0, 3, 6), listOf(1, 4, 7), listOf(2, 5, 8), // 豎
+            listOf(0, 4, 8), listOf(2, 4, 6)  // 斜
+        )
+
+        for (line in lines) {
+            val marks = line.map { board[it] }
+            val emptyCount = marks.count { it == 0 }
+            val oppCount = marks.count { it == opponent }
+            if (oppCount == 2 && emptyCount == 1) {
+                // 原本有威脅
+                val newMarks = line.map { tempBoard[it] }
+                if (newMarks.count { it == opponent } == 2 && newMarks.count { it == 0 } == 0) {
+                    return true  // 下完後威脅消失
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * 判斷下 pos 是否創造「兩個同色 + 空一格」的威脅（即自己即將贏）
+     */
+    fun isCreatingThreat(board: BoardStatus, pos: Int, myType: Int): Boolean {
+        if (board[pos] != 0) return false
+
+        val tempBoard = BoardAnalyze.newBoardStatus(board, pos, myType)
+
+        val lines = listOf(
+            listOf(0, 1, 2), listOf(3, 4, 5), listOf(6, 7, 8),
+            listOf(0, 3, 6), listOf(1, 4, 7), listOf(2, 5, 8),
+            listOf(0, 4, 8), listOf(2, 4, 6)
+        )
+
+        for (line in lines) {
+            val marks = line.map { tempBoard[it] }
+            if (marks.count { it == myType } == 2 && marks.count { it == 0 } == 1) {
+                return true
+            }
+        }
+        return false
+    }
+
 }

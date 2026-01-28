@@ -88,25 +88,39 @@ class Episode {
      *
      * You can later replace this with proper RL (reward, gamma discount, backward update, etc.)
      */
-    // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新。
+    // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新
     fun refine(
         table: QSTable,
         outcome: Int,
-        winDelta: Int = 3,     // 調低
-        loseDelta: Int = 1,   // 加強懲罰
-        drawDelta: Int = -1,    // 調低
+        myType: Int,  // 需傳入 AI 的 playerType
+        winDelta: Int = 3,
+        loseDelta: Int = -1,
+        drawDelta: Int = 1,
         gamma: Double = 0.95,
+        blockBonus: Int = 10,   // 阻擋威脅額外獎勵
+        threatBonus: Int = 1   // 創造威脅額外獎勵
     ) {
         var factor = 1.0
 
         forEachReversed { step ->
             val pt = table.ensureBuilt(step.sa, step.legalPos.toList(), defaultWeight = 1)
 
-            val baseDelta = when (outcome) {
+            var baseDelta = when (outcome) {
                 0 -> drawDelta
-                1 -> if (step.playerType == 1) winDelta else loseDelta   // O win → X 輸
-                2 -> if (step.playerType == 2) winDelta else loseDelta   // X win → O 輸
+                1 -> if (step.playerType == 1) winDelta else loseDelta
+                2 -> if (step.playerType == 2) winDelta else loseDelta
                 else -> 0
+            }
+
+            // 額外 shaped reward（只給 AI 步驟）
+            if (step.playerType == myType) {
+                if (BoardAnalyze.isBlockingThreat(step.sa, step.chosenPos, myType)) {
+                    baseDelta += blockBonus
+                    MyLog.add("Found Blocking Threat!")
+                }
+                if (BoardAnalyze.isCreatingThreat(step.sa, step.chosenPos, myType)) {
+                    baseDelta += threatBonus
+                }
             }
 
             val delta = (baseDelta * factor).toInt()
@@ -115,8 +129,8 @@ class Episode {
                 pt.addWeight(step.chosenPos, delta)
 
                 // 輸的時候：其他合法行動 +1（鼓勵探索替代）
-                if (baseDelta < 0) {  // loss
-                    val altDelta = 1  // 固定小幅提升
+                if (baseDelta < 0) {
+                    val altDelta = 1
                     step.legalPos.forEach { pos ->
                         if (pos != step.chosenPos) {
                             pt.addWeight(pos, altDelta)
