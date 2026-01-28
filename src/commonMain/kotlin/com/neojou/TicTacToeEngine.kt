@@ -41,6 +41,30 @@ object TicTacToeEngine {
     }
 
     /**
+     * 新增：產生初始 GameState，隨機決定誰先手 (1=O 人先, 2=X AI 先)
+     */
+    fun createInitialState(randomFirst: Boolean = true): GameState {
+        val initialTurn = if (!randomFirst) 2 else (1..2).random()  // 預設 X 先，可關閉隨機
+        return GameState(turn = initialTurn)
+    }
+
+    /**
+     * 新增：如果 AI 先手，立即讓 AI 下第一步 (用於 newGame)
+     */
+    fun aiFirstMove(initialState: GameState, aiPlayer: AIPlayer): GameUpdate {
+        if (initialState.turn != 2) return GameUpdate(initialState)  // 非 AI 先，無動作
+
+        val aiPos = aiPlayer.chooseMove(initialState.board)
+        if (aiPos == null || initialState.board[aiPos] != 0) return GameUpdate(initialState)
+
+        val update = applyMove(initialState, aiPos, actor = "AI First Move")
+        return GameUpdate(
+            state = update.state,
+            logs = update.logs
+        )
+    }
+
+    /**
      * 套用「當前回合」的一步落子 + 勝負判定。
      * 若 pos 無效（已有棋子），回傳 state 不變，並帶 log。
      */
