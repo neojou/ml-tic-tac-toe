@@ -16,8 +16,20 @@ interface AIPlayer {
     fun refine(iGameResult: Int) { return }
 
     /**
-     * 清空所有記錄，包括 QSTable 和 episode。
+     * 清空所有記錄，包括 QSTable、episode 和 lastAfterMyMove。
      * 預設不做事；有記錄功能的 AI 再 override。
      */
     fun clearRecords() { return }
+
+    /**
+     * 新遊戲時呼叫：清 episode 和 lastAfterMyMove，保留 QSTable。
+     * 預設不做事；有記錄功能的 AI 再 override。
+     */
+    fun resetForGame() { return }
+
+    /**
+     * Forget 時呼叫：清 QSTable、episode 和 lastAfterMyMove。
+     * 預設不做事；有記錄功能的 AI 再 override。
+     */
+    fun resetForForget() { return }
 }

@@ -17,7 +17,8 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
 
     fun newGame() {
         state = GameState()
-        MyLog.add("New game")
+        aiPlayer.resetForGame()  // 更新：使用新方法，只清單局狀態，保留 QSTable
+        MyLog.add("New game - AI reset for game")
     }
 
     fun onCellClick(pos: Int) {
@@ -30,13 +31,13 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         }
     }
 
-    // 新增：Forget 函數（假設 AI 有 clearRecords 方法來清空學習記錄）
+    // 更新：Forget 函數，使用新方法清 QSTable
     fun onForget() {
-        aiPlayer.clearRecords()  // 請根據 QSTableAIPlayer 的實際 API 調整，例如清空 Q-Table
+        aiPlayer.resetForForget()
         MyLog.add("Forgot all records")
     }
 
-    // 新增：Analyze 函數（使用現有的 showRecords 來顯示分析）
+    // Analyze 函數不變
     fun onAnalyze() {
         aiPlayer.showRecords()
         MyLog.add("Analyzed records")
@@ -50,7 +51,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         modifier = modifier,
         onCellClick = ::onCellClick,
         onNewGame = ::newGame,
-        onForget = ::onForget,   // 傳入新函數
-        onAnalyze = ::onAnalyze  // 傳入新函數
+        onForget = ::onForget,
+        onAnalyze = ::onAnalyze
     )
 }

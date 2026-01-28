@@ -53,16 +53,26 @@ class FirstEmptyWithRecordAIPlayer(
         return myPos
     }
 
-    fun resetEpisode() {
+    // 移除 resetEpisode()，取代為以下兩個新方法
+
+    // 新增：新遊戲時重置單局狀態，保留 QSTable
+    override fun resetForGame() {
+        episode.clear()
+        lastAfterMyMove = null
+        MyLog.add("Reset for new game: cleared episode and lastAfterMyMove (QSTable preserved)")
+    }
+
+    // 新增：Forget 時重置所有學習
+    override fun resetForForget() {
         table.clear()
         episode.clear()
         lastAfterMyMove = null
+        MyLog.add("Reset for forget: cleared QSTable, episode, and lastAfterMyMove")
     }
 
-    // 新增：override clearRecords()，清空 QSTable 和相關狀態
+    // 更新：clearRecords() 現在呼叫 resetForForget()
     override fun clearRecords() {
-        resetEpisode()
-        MyLog.add("Cleared QSTable and episode records")
+        resetForForget()
     }
 
     private fun tryGetSingleMovePosOrNull(sa: BoardStatus, sb: BoardStatus): Int? {
