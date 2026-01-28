@@ -42,7 +42,8 @@ class QSTableAIPlayer(
 
         val pt = table.ensureBuilt(sa, legal2, defaultWeight = 1)
 
-        val myPos = samplePosBySoftmax(pt, legal2, temperature) ?: return null
+        //val myPos = samplePosBySoftmax(pt, legal2, temperature) ?: return null
+        val myPos = samplePosByLinear(pt, legal2, temperature) ?: return null
 
         episode.append(sa, myPos, legal2, playerType = myType)
 
@@ -104,6 +105,40 @@ class QSTableAIPlayer(
         } catch (_: IllegalArgumentException) {
             null
         }
+    }
+
+    private fun samplePosByLinear(
+        pt: PTable,
+        legalPos: Set<Int>,
+        temperature: Double,  // 可選：用來縮放 score (e.g., score / temp)，但線性通常不需
+        random: Random = Random,
+    ): Int? {
+        if (legalPos.isEmpty()) return null
+
+        if (temperature <= 0.0) {
+            // Greedy: 選 max score (與 softmax 相同)
+            val maxScore = legalPos.maxOf { pt.getWeight(it) }
+            val ties = legalPos.filter { pt.getWeight(it) == maxScore }
+            return ties[random.nextInt(ties.size)]
+        }
+
+        // 計算總 score (只 legal pos)
+        val totalScore = legalPos.sumOf { pt.getWeight(it).toDouble() }
+        if (totalScore <= 0.0) {
+            // Fallback: 純隨機
+            val list = legalPos.toList()
+            return list[random.nextInt(list.size)]
+        }
+
+        // 輪盤選擇：產生 r ∈ [0, totalScore)，累積 score 直到超過
+        val r = random.nextDouble() * totalScore
+        var acc = 0.0
+        for (pos in legalPos.sorted()) {  // sorted 確保穩定順序
+            val score = pt.getWeight(pos).toDouble()
+            acc += score
+            if (r < acc) return pos
+        }
+        return legalPos.last()  // Fallback
     }
 
     private fun samplePosBySoftmax(

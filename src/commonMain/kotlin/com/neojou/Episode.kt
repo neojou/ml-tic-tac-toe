@@ -44,10 +44,10 @@ class Episode {
     fun refine(
         table: QSTable,
         outcome: Int,
-        winDelta: Int = 10,
+        winDelta: Int = 5,
         loseDelta: Int = 1,
-        drawDelta: Int = 5,
-        gamma: Double = 1.0, // 先保留；目前可設 1.0 等於不折扣
+        drawDelta: Int = 2,
+        gamma: Double = 0.95, // 先保留；目前可設 1.0 等於不折扣
     ) {
         /*
         // parse outcome from your current GameState.gameResult text
