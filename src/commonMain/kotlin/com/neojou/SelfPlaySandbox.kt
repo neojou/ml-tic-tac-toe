@@ -6,16 +6,11 @@ import kotlin.random.Random
 object SelfPlaySandbox {
 
     /**
-     * 運行自我對弈 N 盤，兩個 AI 共享 table 學習。
-     * @param numGames 總盤數 (e.g., 100)
-     * @param selfPlayRatio 自玩比例 (0.7 = 70% 自玩，30% vs random)
-     * @param sharedTable 共享的 QSTable (外部注入)
-     * @param onProgress 進度 callback (e.g., log "game i/100")
-     * @return 統計：自玩勝率、vs random 勝率
+     * 運行自我對弈與對隨機對手的對局，每種模式固定跑 numGames 次。
+     * 總盤數 = 3 × numGames（自玩 + AI後手vs隨機 + AI先手vs隨機）
      */
     fun runSelfPlay(
         numGames: Int,
-        selfPlayRatio: Double = 0.7,  // 新增：自玩比例
         sharedTable: QSTable,
         onProgress: (completed: Int, stats: SelfPlayStats) -> Unit = { _, _ -> }
     ): SelfPlayStats {
@@ -23,86 +18,98 @@ object SelfPlaySandbox {
         val aiX = QSTableAIPlayer(myType = 2, table = sharedTable)
         val aiNatureStupid = RandomAIPlayer()
 
-        val numSelfPlay = (numGames * selfPlayRatio).toInt()
-        val numVsRandom = numGames - numSelfPlay
-
         var selfPlayWins = 0
-        var vsRandomWins = 0
+        var vsRandomAfterWins = 0   // AI 後手 vs random 先手
+        var vsRandomFirstWins = 0   // AI 先手 vs random 後手
+
+        val totalGames = numGames * 3
 
         // 第一輪：自玩 (aiO vs aiX)
-        repeat(numSelfPlay) { i ->
-            aiO.resetForGame()
-            aiX.resetForGame()
+        repeat(numGames) { i ->
+            val (finalState, aiWin) = playGame(aiO, aiX, true)
+            if (aiWin) selfPlayWins++
 
-            var state = TicTacToeEngine.createInitialState(randomFirst = true)
+            aiO.refine(finalState.iGameResult)
+            aiX.refine(finalState.iGameResult)
 
-            // 若 AI 先手 (turn==2)，立即下第一步
-            if (state.turn == 2) {
-                val pos = aiX.chooseMove(state.board)
-                if (pos != null) {
-                    state = TicTacToeEngine.simulateMove(state, pos)
-                }
-            }
-
-            // 輪流下子直到結束
-            while (!state.gameOver) {
-                val currentAi = if (state.turn == 1) aiO else aiX
-                val pos = currentAi.chooseMove(state.board)
-                if (pos == null) break
-                state = TicTacToeEngine.simulateMove(state, pos)
-            }
-
-            // 學習：兩個 AI 各自 refine (共享 table)
-            aiO.refine(state.iGameResult)
-            aiX.refine(state.iGameResult)
-
-            // 統計 (假設 iGameResult >0 為 aiO/X 贏；調整依需求)
-            if (state.iGameResult > 0) selfPlayWins++
-
-            onProgress(i + 1, SelfPlayStats(selfPlayWins, 0, numSelfPlay, 0))
+            val completed = i + 1
+            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
         }
 
-        // 第二輪：vs random (aiO vs aiNatureStupid)
-        repeat(numVsRandom) { i ->
-            aiO.resetForGame()
+        // 第二輪：AI 後手 vs random 先手
+        repeat(numGames) { i ->
+            val (finalState, aiWin) = playGame(aiO, aiNatureStupid, false, aiFirst = false)
+            if (aiWin) vsRandomAfterWins++
 
-            var state = TicTacToeEngine.createInitialState(randomFirst = true)
+            aiO.refine(finalState.iGameResult)
 
-            // 若 AI 先手 (turn==2)，立即下第一步 (random 先？調整)
-            if (state.turn == 2) {
-                val pos = aiNatureStupid.chooseMove(state.board)
-                if (pos != null) {
-                    state = TicTacToeEngine.simulateMove(state, pos)
-                }
-            }
-
-            // 輪流下子直到結束
-            while (!state.gameOver) {
-                val currentPlayer = if (state.turn == 1) aiO else aiNatureStupid
-                val pos = currentPlayer.chooseMove(state.board)
-                if (pos == null) break
-                state = TicTacToeEngine.simulateMove(state, pos)
-            }
-
-            aiO.refine(state.iGameResult)
-
-            // 統計 (aiO 贏)
-            if (state.iGameResult > 0) vsRandomWins++
-
-            val totalCompleted = numSelfPlay + i + 1
-            onProgress(totalCompleted, SelfPlayStats(selfPlayWins, vsRandomWins, numSelfPlay, numVsRandom))
+            val completed = numGames + i + 1
+            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
         }
 
-        return SelfPlayStats(selfPlayWins, vsRandomWins, numSelfPlay, numVsRandom)
+        // 第三輪：AI 先手 vs random 後手
+        repeat(numGames) { i ->
+            val (finalState, aiWin) = playGame(aiO, aiNatureStupid, false, aiFirst = true)
+            if (aiWin) vsRandomFirstWins++
+
+            aiO.refine(finalState.iGameResult)
+
+            val completed = numGames * 2 + i + 1
+            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
+        }
+
+        return SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames)
     }
 
-    data class SelfPlayStats(
-        val selfPlayWins: Int,
-        val vsRandomWins: Int,
-        val numSelfPlay: Int,
-        val numVsRandom: Int
-    ) {
-        val selfPlayWinRate = if (numSelfPlay > 0) selfPlayWins.toDouble() / numSelfPlay else 0.0
-        val vsRandomWinRate = if (numVsRandom > 0) vsRandomWins.toDouble() / numVsRandom else 0.0
+    // playGame 保持不變（您的原版）
+    private fun playGame(
+        ai: QSTableAIPlayer,
+        opponent: AIPlayer,
+        isSelfPlay: Boolean,
+        aiFirst: Boolean = true
+    ): Pair<GameState, Boolean> {
+        ai.resetForGame()
+        if (isSelfPlay) (opponent as QSTableAIPlayer).resetForGame()
+
+        var state = if (aiFirst) {
+            GameState(turn = ai.myType)
+        } else {
+            GameState(turn = if (ai.myType == 1) 2 else 1)
+        }
+
+        val firstPlayer = if (aiFirst) ai else opponent
+        val pos = firstPlayer.chooseMove(state.board)
+        if (pos != null) {
+            state = TicTacToeEngine.simulateMove(state, pos)
+        }
+
+        while (!state.gameOver) {
+            val currentPlayer = if (state.turn == ai.myType) ai else opponent
+            val pos = currentPlayer.chooseMove(state.board)
+            if (pos == null) break
+            state = TicTacToeEngine.simulateMove(state, pos)
+        }
+
+        val aiWin = state.iGameResult == ai.myType
+
+        if (isSelfPlay) {
+            (opponent as QSTableAIPlayer).refine(state.iGameResult)
+        }
+
+        return state to aiWin
     }
+}
+
+data class SelfPlayStats(
+    val selfPlayWins: Int,
+    val vsRandomAfterWins: Int,
+    val vsRandomFirstWins: Int,
+    val numSelfPlay: Int,
+    val numVsRandomAfter: Int,
+    val numVsRandomFirst: Int
+) {
+    val selfPlayWinRate = if (numSelfPlay > 0) selfPlayWins.toDouble() / numSelfPlay else 0.0
+    val vsRandomAfterWinRate = if (numVsRandomAfter > 0) vsRandomAfterWins.toDouble() / numVsRandomAfter else 0.0
+    val vsRandomFirstWinRate = if (numVsRandomFirst > 0) vsRandomFirstWins.toDouble() / numVsRandomFirst else 0.0
+    val overallVsRandomWinRate = (vsRandomAfterWins + vsRandomFirstWins).toDouble() / (numVsRandomAfter + numVsRandomFirst)
 }

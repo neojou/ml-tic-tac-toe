@@ -93,7 +93,7 @@ class Episode {
         outcome: Int,  // O win: 1 , X win: 2, Draw: 0
         winDelta: Int = 5,
         loseDelta: Int = -2,
-        drawDelta: Int = 2,
+        drawDelta: Int = 1,
         gamma: Double = 0.95,
     ) {
 

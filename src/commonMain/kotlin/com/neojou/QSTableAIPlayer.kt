@@ -1,14 +1,17 @@
 package com.neojou
 
 import kotlin.math.exp
+import kotlin.math.max
 import kotlin.random.Random
 
 // MOD: 建構子新增 table 參數 (必填)
 class QSTableAIPlayer(
-    private val myType: Int = 2,
-    private val table: QSTable,  // NEW: 外部注入，支持共享
-    private val temperature: Double = 1.0,
+    val myType: Int = 2,
+    private val table: QSTable, // NEW: 外部注入，支持共享
+    private val temperature: Double = 1.0, // 初始 temperature (可忽略，動態計算會覆蓋)
 ) : FirstEmptyAIPlayer() {
+
+    var globalGames = 0 // 改為 var，讓 refine 遞增
 
     val episode = Episode()
 
@@ -21,6 +24,9 @@ class QSTableAIPlayer(
         BoardStatus(s.copyArray())
 
     override fun chooseMove(board: BoardStatus): Int? {
+
+        // 新增：計算動態 temperature (衰減探索：從 1.0 降到 0.1，基於全域遊戲計數)
+        val currentTemp = max(0.1, 1.0 - globalGames / 10000.0)
 
         // --- (A) 記錄對手那一步：S_prev -> board ---
         val sPrev = lastAfterMyMove ?: emptyS0
@@ -44,7 +50,7 @@ class QSTableAIPlayer(
         val pt = table.ensureBuilt(sa, legal2, defaultWeight = 1)
 
         //val myPos = samplePosBySoftmax(pt, legal2, temperature) ?: return null
-        val myPos = samplePosByLinear(pt, legal2, temperature) ?: return null
+        val myPos = samplePosByLinear(pt, legal2, currentTemp) ?: return null // 新增：用動態 currentTemp
 
         episode.append(sa, myPos, legal2, playerType = myType)
 
@@ -63,6 +69,7 @@ class QSTableAIPlayer(
             currentEpisode = currentEpisode.clockwise()
             currentEpisode.refine(table, iGameResult)
         }
+        globalGames++  // 每局結束後全域計數 +1 (觸發 temperature decay)
     }
 
     // 移除 resetEpisode()，取代為以下兩個新方法
@@ -79,6 +86,7 @@ class QSTableAIPlayer(
         table.clear()
         episode.clear()
         lastAfterMyMove = null
+        globalGames = 0  // 新增：Forget 時重置計數 (可選，依需求)
         MyLog.add("Reset for forget: cleared QSTable, episode, and lastAfterMyMove")
     }
 
@@ -90,6 +98,7 @@ class QSTableAIPlayer(
     override fun showRecords() {
         table.show("QSTable")
         episode.show(table, "Episode")
+        MyLog.add("Global games played: $globalGames (current temp: ${max(0.1, 1.0 - globalGames / 10000.0)})")
     }
 
     override fun addLastMove(board: BoardStatus) {
@@ -116,7 +125,7 @@ class QSTableAIPlayer(
     private fun samplePosByLinear(
         pt: PTable,
         legalPos: Set<Int>,
-        temperature: Double,  // 可選：用來縮放 score (e.g., score / temp)，但線性通常不需
+        temperature: Double, // 可選：用來縮放 score (e.g., score / temp)，但線性通常不需
         random: Random = Random,
     ): Int? {
         if (legalPos.isEmpty()) return null
