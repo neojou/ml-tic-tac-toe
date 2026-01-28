@@ -1,94 +1,69 @@
 package com.neojou
 
-import com.neojou.TicTacToeEngine
-import kotlin.random.Random
-
 object SelfPlaySandbox {
 
-    fun runSelfPlay(
+    fun trainSelfPlayOnly(
+        aiXFromUi: QLearnAIPlayer,  // myType = 2
         loops: Int,
         eachTimes: Int,
-        sharedTable: QSTable,
         onProgress: (completed: Int, stats: SelfPlayStats) -> Unit = { _, _ -> }
     ): SelfPlayStats {
-        val aiO = QSTableAIPlayer(myType = 1, table = sharedTable)
-        val aiX = QSTableAIPlayer(myType = 2, table = sharedTable)
-        val aiNatureStupid = RandomAIPlayer()
 
-        var selfPlayWins = 0
-        var vsRandomAfterWins = 0
-        var vsRandomFirstWins = 0
+        // 用同一個 brain 建 O 外殼（myType=1）
+        val aiO = QLearnAIPlayer(myType = 1, brain = aiXFromUi.brain)
+        val aiX = aiXFromUi
 
-        val totalGames = loops * eachTimes * 3
+        var oWins = 0
+        val total = loops * eachTimes
 
         repeat(loops) { loopIndex ->
-            MyLog.add("Starting loop ${loopIndex + 1}/$loops (eachTimes=$eachTimes)")
-
-// 第一輪：自玩（aiO vs aiX）
-            val selfPlayEpisodes = AllEpisodes()
             repeat(eachTimes) { i ->
-                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiX, true)
-                if (aiWin) selfPlayWins++
+                // 這裡固定 O 先手：aiO vs aiX
+                val (finalState, oWin) = playGame(
+                    ai = aiO,
+                    opponent = aiX,
+                    isSelfPlay = true,
+                    aiFirst = true
+                )
+                if (oWin) oWins++
 
-                // 自玩：加入 aiO 的 episode + myType
-                selfPlayEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
+                // 兩邊都 refine（各自 episodeTransitions；但共享 brain）
+                aiO.refine(finalState.iGameResult)
+                aiX.refine(finalState.iGameResult)
 
-                // 自玩時，也要加入 aiX 的 episode（因為雙方都要學）
-                selfPlayEpisodes.add(aiX.episode, finalState.iGameResult, aiX.myType)
-
-                val completed = (loopIndex * eachTimes * 3) + i + 1
-                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
+                val completed = loopIndex * eachTimes + i + 1
+                onProgress(
+                    completed,
+                    SelfPlayStats(
+                        selfPlayWins = oWins,
+                        vsRandomAfterWins = 0,
+                        vsRandomFirstWins = 0,
+                        numSelfPlay = completed,
+                        numVsRandomAfter = 0,
+                        numVsRandomFirst = 0
+                    )
+                )
             }
-            selfPlayEpisodes.refineAll(sharedTable)
-
-
-// 第二輪：AI 後手 vs random 先手（只輸才蒐集）
-            val vsRandomAfterEpisodes = AllEpisodes()
-            repeat(eachTimes) { i ->
-                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = false)
-                if (aiWin) vsRandomAfterWins++
-
-                if (!aiWin) {
-                //    vsRandomAfterEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
-                }
-
-                val completed = (loopIndex * eachTimes * 3) + eachTimes + i + 1
-                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
-            }
-            vsRandomAfterEpisodes.refineAll(sharedTable)
-
-// 第三輪：AI 先手 vs random 後手（只輸才蒐集）
-            val vsRandomFirstEpisodes = AllEpisodes()
-            repeat(eachTimes) { i ->
-                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = true)
-                if (aiWin) vsRandomFirstWins++
-
-                if (!aiWin) {
-                //    vsRandomFirstEpisodes.add(aiEpisode, finalState.iGameResult, aiO.myType)
-                }
-
-                val completed = (loopIndex * eachTimes * 3) + eachTimes * 2 + i + 1
-                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
-            }
-            vsRandomFirstEpisodes.refineAll(sharedTable)
-
-            MyLog.add("Loop ${loopIndex + 1} finished. Current stats: SelfPlay ${selfPlayWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
-                    "VsRandom After ${vsRandomAfterWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
-                    "VsRandom First ${vsRandomFirstWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%")
         }
 
-        return SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops)
+        return SelfPlayStats(
+            selfPlayWins = oWins,
+            vsRandomAfterWins = 0,
+            vsRandomFirstWins = 0,
+            numSelfPlay = total,
+            numVsRandomAfter = 0,
+            numVsRandomFirst = 0
+        )
     }
 
-    // playGameCollectEpisodes 保持原樣（回傳 AI 的 episode）
-    private fun playGameCollectEpisodes(
-        ai: QSTableAIPlayer,
+    private fun playGame(
+        ai: QLearnAIPlayer,
         opponent: AIPlayer,
         isSelfPlay: Boolean,
         aiFirst: Boolean = true
-    ): Triple<GameState, Boolean, Episode> {
+    ): Pair<GameState, Boolean> {
         ai.resetForGame()
-        if (isSelfPlay) (opponent as QSTableAIPlayer).resetForGame()
+        if (isSelfPlay) (opponent as? QLearnAIPlayer)?.resetForGame()
 
         var state = if (aiFirst) {
             GameState(turn = ai.myType)
@@ -96,51 +71,165 @@ object SelfPlaySandbox {
             GameState(turn = if (ai.myType == 1) 2 else 1)
         }
 
+        // 第一手也要把 actor 傳進 simulateMoveWithResult，才能正確補 transition
         val firstPlayer = if (aiFirst) ai else opponent
-        val pos = firstPlayer.chooseMove(state.board)
-        if (pos != null) {
-            state = TicTacToeEngine.simulateMove(state, pos)
+        val firstPos = firstPlayer.chooseMove(state.board)
+        if (firstPos != null) {
+            state = TicTacToeEngine.simulateMoveWithResult(state, firstPos, firstPlayer)
         }
 
         while (!state.gameOver) {
             val currentPlayer = if (state.turn == ai.myType) ai else opponent
-            val pos = currentPlayer.chooseMove(state.board)
-            if (pos == null) break
-            state = TicTacToeEngine.simulateMove(state, pos)
+            val pos = currentPlayer.chooseMove(state.board) ?: break
+            state = TicTacToeEngine.simulateMoveWithResult(state, pos, currentPlayer)
         }
 
         val aiWin = state.iGameResult == ai.myType
-        val aiEpisode = ai.episode
-
-        return Triple(state, aiWin, aiEpisode)
-    }
-}
-
-class AllEpisodes {
-    private val episodes = mutableListOf<Triple<Episode, Int, Int>>()  // (episode, outcome, myType)
-
-    fun add(episode: Episode, outcome: Int, myType: Int) {
-        episodes.add(Triple(episode, outcome, myType))
+        return state to aiWin
     }
 
-    fun clear() {
-        episodes.clear()
+    data class EvalVsRandomResult(
+        val winsAsXSecond: Int,
+        val gamesAsXSecond: Int,
+        val winsAsOFirst: Int,
+        val gamesAsOFirst: Int
+    ) {
+        val winRateAsXSecond = if (gamesAsXSecond > 0) winsAsXSecond.toDouble() / gamesAsXSecond else 0.0
+        val winRateAsOFirst = if (gamesAsOFirst > 0) winsAsOFirst.toDouble() / gamesAsOFirst else 0.0
+        val overallWinRate =
+            if (gamesAsXSecond + gamesAsOFirst > 0)
+                (winsAsXSecond + winsAsOFirst).toDouble() / (gamesAsXSecond + gamesAsOFirst)
+            else 0.0
     }
 
-    fun refineAll(table: QSTable) {
-        episodes.forEach { (episode, outcome, myType) ->
-            episode.refine(table, outcome, myType = myType)  // 傳入 myType
-            var current = episode
-            repeat(3) {
-                current = current.clockwise()
-                current.refine(table, outcome, myType = myType)
+    fun evalVsRandomSummary(
+        aiX: QLearnAIPlayer,     // myType=2
+        aiO: QLearnAIPlayer,     // myType=1 (共享同 brain)
+        gamesAsXSecond: Int,
+        gamesAsOFirst: Int
+    ): EvalVsRandomResult {
+        val randomAI = RandomAIPlayer()
+
+        // 1) X 後手評估：aiX vs random(O先手)
+        val winsAsXSecond = aiX.withEpsilon(0.0) {
+            var wins = 0
+            repeat(gamesAsXSecond) {
+                val (_, xWin) = playGame(ai = aiX, opponent = randomAI, isSelfPlay = false, aiFirst = false)
+                if (xWin) wins++
+            }
+            wins
+        }
+
+        // 2) O 先手評估：aiO vs random(X後手)
+        val winsAsOFirst = aiO.withEpsilon(0.0) {
+            var wins = 0
+            repeat(gamesAsOFirst) {
+                val (_, oWin) = playGame(ai = aiO, opponent = randomAI, isSelfPlay = false, aiFirst = true)
+                if (oWin) wins++
+            }
+            wins
+        }
+
+        return EvalVsRandomResult(
+            winsAsXSecond = winsAsXSecond,
+            gamesAsXSecond = gamesAsXSecond,
+            winsAsOFirst = winsAsOFirst,
+            gamesAsOFirst = gamesAsOFirst
+        )
+    }
+
+    fun trainMixed(
+        aiXFromUi: QLearnAIPlayer,   // myType = 2
+        loops: Int,
+        gamesPerLoop: Int,
+        selfPlayRatio: Double = 0.8, // 80%
+        onProgress: (completed: Int, stats: SelfPlayStats) -> Unit = { _, _ -> }
+    ): SelfPlayStats {
+
+        val aiX = aiXFromUi
+        val aiO = QLearnAIPlayer(myType = 1, brain = aiX.brain)
+
+        var selfPlayWins = 0
+        var vsRandomAfterWins = 0
+        var vsRandomFirstWins = 0
+
+        var doneSelf = 0
+        var doneAfter = 0
+        var doneFirst = 0
+
+        val randomAI = RandomAIPlayer()
+
+        val selfN = (gamesPerLoop * selfPlayRatio).toInt().coerceIn(0, gamesPerLoop)
+        val randN = gamesPerLoop - selfN
+
+        repeat(loops) { loopIndex ->
+
+            // A) self-play 訓練：交替先手，讓 O/X 都有當先手與後手的經驗
+            repeat(selfN) { i ->
+                val oFirst = (i % 2 == 0)
+                val (finalState, aiWin) = if (oFirst) {
+                    playGame(ai = aiO, opponent = aiX, isSelfPlay = true, aiFirst = true)   // O 先手
+                } else {
+                    playGame(ai = aiX, opponent = aiO, isSelfPlay = true, aiFirst = true)   // X 先手
+                }
+
+                // 這裡的 selfPlayWins：只是示範用「先手那個 ai 的勝場」；你也可以改成統計 X 勝場/或 O 勝場/或非輸率
+                if (aiWin) selfPlayWins++
+                doneSelf++
+
+                aiO.refine(finalState.iGameResult)
+                aiX.refine(finalState.iGameResult)
+
+                // 探索率一起衰減，避免兩個外殼的 epsilon 漂太開
+                aiO.decayEpsilon()
+                aiX.decayEpsilon()
+
+                val completed = loopIndex * gamesPerLoop + doneSelf + doneAfter + doneFirst
+                onProgress(
+                    completed,
+                    SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, doneSelf, doneAfter, doneFirst)
+                )
+            }
+
+            // B) vs Random 訓練：把 20% 再切一半，覆蓋「X 後手」與「O 先手」
+            repeat(randN) { i ->
+                val trainXSecond = (i % 2 == 0)
+
+                val (finalState, aiWin) = if (trainXSecond) {
+                    // X 後手 vs random(O 先手)
+                    playGame(ai = aiX, opponent = randomAI, isSelfPlay = false, aiFirst = false)
+                } else {
+                    // O 先手 vs random(X 後手)
+                    playGame(ai = aiO, opponent = randomAI, isSelfPlay = false, aiFirst = true)
+                }
+
+                if (trainXSecond) {
+                    if (aiWin) vsRandomAfterWins++
+                    doneAfter++
+                } else {
+                    if (aiWin) vsRandomFirstWins++
+                    doneFirst++
+                }
+
+                // 訓練階段：要 refine（把 vs random 的資料也吃進來）
+                aiO.refine(finalState.iGameResult)
+                aiX.refine(finalState.iGameResult)
+                aiO.decayEpsilon()
+                aiX.decayEpsilon()
+
+                val completed = loopIndex * gamesPerLoop + doneSelf + doneAfter + doneFirst
+                onProgress(
+                    completed,
+                    SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, doneSelf, doneAfter, doneFirst)
+                )
             }
         }
-        MyLog.add("Batch refine completed: ${episodes.size} episodes processed (myType-aware)")
+
+        return SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, doneSelf, doneAfter, doneFirst)
     }
+
 }
 
-// SelfPlayStats 不變
 data class SelfPlayStats(
     val selfPlayWins: Int,
     val vsRandomAfterWins: Int,
@@ -152,5 +241,9 @@ data class SelfPlayStats(
     val selfPlayWinRate = if (numSelfPlay > 0) selfPlayWins.toDouble() / numSelfPlay else 0.0
     val vsRandomAfterWinRate = if (numVsRandomAfter > 0) vsRandomAfterWins.toDouble() / numVsRandomAfter else 0.0
     val vsRandomFirstWinRate = if (numVsRandomFirst > 0) vsRandomFirstWins.toDouble() / numVsRandomFirst else 0.0
-    val overallVsRandomWinRate = (vsRandomAfterWins + vsRandomFirstWins).toDouble() / (numVsRandomAfter + numVsRandomFirst)
+
+    val overallVsRandomWinRate =
+        if (numVsRandomAfter + numVsRandomFirst > 0)
+            (vsRandomAfterWins + vsRandomFirstWins).toDouble() / (numVsRandomAfter + numVsRandomFirst)
+        else 0.0
 }

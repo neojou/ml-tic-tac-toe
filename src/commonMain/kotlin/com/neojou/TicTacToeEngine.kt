@@ -1,5 +1,7 @@
 package com.neojou
 
+import kotlin.random.Random
+
 data class GameUpdate(
     val state: GameState,
     val logs: List<String> = emptyList()
@@ -11,29 +13,45 @@ object TicTacToeEngine {
      * @param aiPlayer 若為 null，則維持純雙人輪流；若非 null，輪到 X 時自動下子
      */
     fun onCellClick(prev: GameState, pos: Int, aiPlayer: AIPlayer? = null): GameUpdate {
+    //    MyLog.add("onCellClick called: pos=$pos, turn=${prev.turn}, gameOver=${prev.gameOver}, aiPlayer=${aiPlayer != null}")
+
         // 若遊戲結束，不處理
-        if (prev.gameOver) return GameUpdate(prev)
+        if (prev.gameOver) {
+            //MyLog.add("Game already over, skip")
+            return GameUpdate(prev)
+        }
 
         // 若已啟用 AI，且現在輪到 X，忽略人類點擊（避免「搶下 X」）
-        if (aiPlayer != null && prev.turn == 2) return GameUpdate(prev)
+        if (aiPlayer != null && prev.turn == 2) {
+            MyLog.add("AI turn (X), ignore human click")
+            return GameUpdate(prev)
+        }
 
         // 人類下
-        val humanUpdate = applyMove(prev, pos, actor = "Mouse Click")
-        if (humanUpdate.state == prev) return humanUpdate
+        val humanUpdate = applyMove(prev, pos, actor = "Mouse Click", aiPlayer = aiPlayer)
+        if (humanUpdate.state == prev) {
+            MyLog.add("Invalid human move (pos occupied), skip")
+            return humanUpdate
+        }
         if (humanUpdate.state.gameOver) {
+            //MyLog.add("Human move ends game")
             aiPlayer?.addLastMove(humanUpdate.state.board)
             return humanUpdate
         }
 
         // 若啟用 AI 且下一手輪到 X，讓 AI 走一步
         if (aiPlayer != null && humanUpdate.state.turn == 2) {
+            //MyLog.add("AI turn after human move")
             val aiPos = aiPlayer.chooseMove(humanUpdate.state.board)
             if (aiPos != null && humanUpdate.state.board[aiPos] == 0) {
-                val aiUpdate = applyMove(humanUpdate.state, aiPos, actor = "AI")
+                val aiUpdate = applyMove(humanUpdate.state, aiPos, actor = "AI", aiPlayer = aiPlayer)
+                //MyLog.add("AI chose pos=$aiPos")
                 return GameUpdate(
                     state = aiUpdate.state,
                     logs = humanUpdate.logs + "AI chooses A[$aiPos]" + aiUpdate.logs
                 )
+            } else {
+                MyLog.add("AI no valid move or pos occupied")
             }
         }
 
@@ -41,80 +59,22 @@ object TicTacToeEngine {
     }
 
     /**
-     * 新增：產生初始 GameState，隨機決定誰先手 (1=O 人先, 2=X AI 先)
-     */
-    fun createInitialState(randomFirst: Boolean = true): GameState {
-        val initialTurn = if (!randomFirst) 2 else (1..2).random()  // 預設 X 先，可關閉隨機
-        return GameState(turn = initialTurn)
-    }
-
-
-    // NEW: 靜默套用一步 (無 log/actor，用於 sandbox)
-    fun simulateMove(prev: GameState, pos: Int): GameState {
-        val cur = prev.board[pos]
-        if (cur != 0) return prev  // 無效，狀態不變
-
-        val nextBoard = BoardStatus(prev.board.copyArray())
-        nextBoard.set(pos, prev.turn)
-
-        val moves2 = prev.moves + 1
-
-        val winner = TicTacToeRules.checkWinner(nextBoard)
-        if (winner == prev.turn) {
-            return prev.copy(
-                board = nextBoard,
-                moves = moves2,
-                gameOver = true,
-                iGameResult = prev.turn,
-                gameResult = if (prev.turn == 1) "O is the winner" else "X is the winner"
-            )
-        }
-
-        if (TicTacToeRules.isDraw(moves2, winner)) {
-            return prev.copy(
-                board = nextBoard,
-                moves = moves2,
-                gameOver = true,
-                iGameResult = 0,
-                gameResult = "Draw"
-            )
-        }
-
-        val nextTurn = if (prev.turn == 1) 2 else 1
-        return prev.copy(board = nextBoard, moves = moves2, turn = nextTurn)
-    }
-
-    /**
-     * 新增：如果 AI 先手，立即讓 AI 下第一步 (用於 newGame)
-     */
-
-    // MOD: aiFirstMove 內部改用 simulateMove (但保留 logs；sandbox 不需此)
-    fun aiFirstMove(initialState: GameState, aiPlayer: AIPlayer): GameUpdate {
-        if (initialState.turn != 2) return GameUpdate(initialState)
-
-        val aiPos = aiPlayer.chooseMove(initialState.board)
-        if (aiPos == null || initialState.board[aiPos] != 0) return GameUpdate(initialState)
-
-        // MOD: 用 simulateMove 計算新狀態，再包 logs
-        val newState = simulateMove(initialState, aiPos)
-        val logs = listOf("AI First Move on A[$aiPos], A[$aiPos] is ${TicTacToeRules.cellToChar(2)}")
-        return GameUpdate(newState, logs)
-    }
-
-    /**
      * 套用「當前回合」的一步落子 + 勝負判定。
      * 若 pos 無效（已有棋子），回傳 state 不變，並帶 log。
      */
-    private fun applyMove(prev: GameState, pos: Int, actor: String): GameUpdate {
+    private fun applyMove(prev: GameState, pos: Int, actor: String, aiPlayer: AIPlayer? = null): GameUpdate {
+        //MyLog.add("applyMove: actor=$actor, pos=$pos, turn=${prev.turn}")
+
         val cur = prev.board[pos]
         if (cur != 0) {
+            MyLog.add("Invalid move: pos $pos already occupied by ${TicTacToeRules.cellToChar(cur)}")
             return GameUpdate(
                 prev,
                 listOf("$actor on A[$pos], A[$pos] has been put ${TicTacToeRules.cellToChar(cur)} already")
             )
         }
 
-        // 產生新 BoardStatus（確保 state 以「新物件」更新，重組才穩）
+        // 產生新 BoardStatus
         val nextBoard = BoardStatus(prev.board.copyArray())
         nextBoard.set(pos, prev.turn)
 
@@ -123,33 +83,147 @@ object TicTacToeEngine {
             "$actor on A[$pos] , A[$pos] is ${TicTacToeRules.cellToChar(prev.turn)}"
         )
 
+        //MyLog.add("Move applied: board now = ${nextBoard.copyArray().contentToString()}")
+
         val winner = TicTacToeRules.checkWinner(nextBoard)
         if (winner == 1) {
-            return GameUpdate(
+            //MyLog.add("O wins!")
+            val update = GameUpdate(
                 prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 1, gameResult = "O is the winner"),
                 logs + "O is the winner"
             )
+            if (aiPlayer is QLearnAIPlayer) {
+                val terminalReward = if (winner == aiPlayer.myType) 1.0 else -1.0
+                aiPlayer.recordStepOutcome(terminalReward, nextBoard)
+                //MyLog.add("Engine: Terminal reward recorded: $terminalReward (O wins)")
+            }
+            return update
         }
         if (winner == 2) {
-            return GameUpdate(
+            //MyLog.add("X wins!")
+            val update = GameUpdate(
                 prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 2, gameResult = "X is the winner"),
                 logs + "X is the winner"
             )
+            if (aiPlayer is QLearnAIPlayer) {
+                val terminalReward = if (winner == aiPlayer.myType) 1.0 else -1.0
+                aiPlayer.recordStepOutcome(terminalReward, nextBoard)
+                //MyLog.add("Engine: Terminal reward recorded: $terminalReward (X wins)")
+            }
+            return update
         }
 
         if (TicTacToeRules.isDraw(moves2, winner)) {
-            return GameUpdate(
+            //MyLog.add("Draw!")
+            val update = GameUpdate(
                 prev.copy(board = nextBoard, moves = moves2, gameOver = true, iGameResult = 0, gameResult = "Draw"),
                 logs + "Draw"
             )
+            if (aiPlayer is QLearnAIPlayer) {
+                aiPlayer.recordStepOutcome(0.0, nextBoard)
+                //MyLog.add("Engine: Terminal reward recorded: 0.0 (Draw)")
+            }
+            return update
         }
 
         val nextTurn = if (prev.turn == 1) 2 else 1
-        return GameUpdate(
+        val update = GameUpdate(
             prev.copy(board = nextBoard, moves = moves2, turn = nextTurn),
             logs
         )
+
+        // 中間步記錄（AI 下子時）
+        if (aiPlayer is QLearnAIPlayer && prev.turn == aiPlayer.myType) {
+            val reward = 0.0
+            aiPlayer.recordStepOutcome(reward, nextBoard)
+            //MyLog.add("Engine: AI mid-game transition recorded, pos=$pos, reward=0.0")
+        }
+
+        return update
     }
 
+
+    /**
+     * 產生初始 GameState
+     * @param randomFirst 是否隨機決定先手（true=隨機 O 或 X 先，false=預設 O 先）
+     * @return 初始 GameState（board 全空，turn=1 或 2，moves=0）
+     */
+    fun createInitialState(randomFirst: Boolean = true): GameState {
+        val initialTurn = if (randomFirst) {
+            if (Random.nextBoolean()) 1 else 2  // 50% O 先，50% X 先
+        } else {
+            1  // 預設 O 先
+        }
+
+        //MyLog.add("createInitialState: turn=$initialTurn (randomFirst=$randomFirst)")
+
+        return GameState(
+            board = BoardStatus(),
+            turn = initialTurn,
+            moves = 0,
+            gameOver = false,
+            iGameResult = 0,
+            gameResult = null
+        )
+    }
+
+    /**
+     * 如果 AI 先手，立即讓 AI 下第一步
+     */
+    fun aiFirstMove(initialState: GameState, aiPlayer: AIPlayer): GameUpdate {
+        //MyLog.add("aiFirstMove called: turn=${initialState.turn}")
+
+        if (initialState.turn != 2) {
+            MyLog.add("Not AI first turn, skip")
+            return GameUpdate(initialState)
+        }
+
+        val aiPos = aiPlayer.chooseMove(initialState.board)
+        if (aiPos == null || initialState.board[aiPos] != 0) {
+            MyLog.add("AI no valid first move or pos occupied")
+            return GameUpdate(initialState)
+        }
+
+        //MyLog.add("AI first move: pos=$aiPos")
+        return applyMove(initialState, aiPos, actor = "AI First Move", aiPlayer = aiPlayer)
+    }
+
+    fun simulateMoveWithResult(state: GameState, pos: Int, actor: AIPlayer? = null): GameState {
+        if (state.gameOver) return state
+        if (state.board[pos] != 0) return state
+
+        val nextBoard = BoardStatus(state.board.copyArray())
+        nextBoard.set(pos, state.turn)
+
+        val moves2 = state.moves + 1
+        val winner = TicTacToeRules.checkWinner(nextBoard)
+        val isDraw = TicTacToeRules.isDraw(moves2, winner)
+        val gameOver2 = (winner == 1 || winner == 2 || isDraw)
+
+        // 讓「下這步的玩家」把 pending transition 補上 (r, s')
+        if (actor is QLearnAIPlayer && state.turn == actor.myType) {
+            val reward = when {
+                !gameOver2 -> 0.0
+                winner == actor.myType -> 1.0
+                winner == 0 -> 0.0
+                else -> -1.0
+            }
+            actor.recordStepOutcome(reward, nextBoard)
+        }
+
+        val nextTurn = if (state.turn == 1) 2 else 1
+        return state.copy(
+            board = nextBoard,
+            moves = moves2,
+            turn = if (gameOver2) state.turn else nextTurn,
+            gameOver = gameOver2,
+            iGameResult = if (gameOver2) winner else state.iGameResult,
+            gameResult = if (gameOver2) when (winner) {
+                1 -> "O is the winner"
+                2 -> "X is the winner"
+                else -> "Draw"
+            } else null
+        )
+    }
 
 }

@@ -22,7 +22,10 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
 //    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
     //val aiPlayer = remember { QSTableAIPlayer() }
     // MOD: aiPlayer 注入 sharedTable
-    val aiPlayer = remember { QSTableAIPlayer(myType = 2, table = sharedTable) }
+    // val aiPlayer = remember { QSTableAIPlayer(myType = 2, table = sharedTable) }
+// 在 TicTacToeGame Composable 中替換
+    val brain = remember { QLearnBrain() }
+    val aiPlayer = remember { QLearnAIPlayer(myType = 2, brain = brain) } // UI 用 X
 
 // NEW: coroutine scope (非阻塞 self-play)
     val scope = rememberCoroutineScope()
@@ -33,26 +36,27 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         state = initialState
 
         aiPlayer.resetForGame()
-        MyLog.add("New game - AI reset for game, first turn: ${TicTacToeRules.cellToChar(initialState.turn)}")
+        //MyLog.add("New game - AI reset for game, first turn: ${TicTacToeRules.cellToChar(initialState.turn)}")
 
         // 如果 AI 先手 (turn==2)，立即讓 AI 下第一步
         if (initialState.turn == 2) {
             val aiFirstUpdate = TicTacToeEngine.aiFirstMove(initialState, aiPlayer)
             state = aiFirstUpdate.state
-            aiFirstUpdate.logs.forEach { MyLog.add(it) }
-            MyLog.add("AI first move executed")
+            aiFirstUpdate.logs.forEach { }//MyLog.add(it) }
+            //MyLog.add("AI first move executed")
         }
     }
 
     fun onCellClick(pos: Int) {
         val update = TicTacToeEngine.onCellClick(state, pos, aiPlayer)
-        update.logs.forEach { MyLog.add(it) }
+        update.logs.forEach { }//MyLog.add(it) }
         state = update.state
         if (state.gameOver) {
             aiPlayer.refine(state.iGameResult)
+            aiPlayer.decayEpsilon()
             aiPlayer.showRecords()
             gameCount++  // 遊戲結束學習後計數 +1
-            MyLog.add("Game learned: total count = $gameCount")
+            //MyLog.add("Game learned: total count = $gameCount")
         }
     }
 
@@ -70,32 +74,35 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     }
 
     fun onGoHome() {
-        // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新。
-        val loops = 10000      // 大循環 5 次
-        val eachTimes = 1  // 每輪每種模式跑 200 盤
-        MyLog.add("GoHome clicked: starting $loops loops × $eachTimes each (total ~${loops * eachTimes * 3} games)...")
+        val trainLoops = 5
+        val trainEach = 200
+        val evalXSecond = 1000
+        val evalOFirst = 1000
 
         scope.launch {
-            val stats = SelfPlaySandbox.runSelfPlay(
-                loops = loops,
-                eachTimes = eachTimes,
-                sharedTable = sharedTable
-            ) {  completed, currentStats ->
-    //            MyLog.add("Progress: $completed/${loops * eachTimes * 3} games - " +
-    //                    "SelfPlay WR: ${currentStats.selfPlayWinRate * 100}%, " +
-    //                    "VsRandom After: ${currentStats.vsRandomAfterWinRate * 100}%, " +
-    //                    "VsRandom First: ${currentStats.vsRandomFirstWinRate * 100}%")
-            }
+            MyLog.add("AI brain size before Training: ${aiPlayer.brain.size()}")
+            val trainStats = SelfPlaySandbox.trainMixed(
+                aiXFromUi = aiPlayer,
+                loops = 5,
+                gamesPerLoop = 500,   // 每個 loop 總訓練盤數；其中 80% self-play + 20% random
+                selfPlayRatio = 0.8,
+                onProgress = { _, _ -> } // 不逐局印
+            )
+            MyLog.add("Training done - SelfPlay winRate: ${trainStats.selfPlayWinRate * 100}%")
 
-            MyLog.add("All loops finished!")
-            MyLog.add("Final Stats:")
-            MyLog.add("- SelfPlay WinRate: ${stats.selfPlayWinRate * 100}% (${stats.selfPlayWins}/${stats.numSelfPlay})")
-            MyLog.add("- VsRandom (AI After): ${stats.vsRandomAfterWinRate * 100}% (${stats.vsRandomAfterWins}/${stats.numVsRandomAfter})")
-            MyLog.add("- VsRandom (AI First): ${stats.vsRandomFirstWinRate * 100}% (${stats.vsRandomFirstWins}/${stats.numVsRandomFirst})")
-            MyLog.add("- Overall VsRandom: ${stats.overallVsRandomWinRate * 100}%")
+            val aiO = QLearnAIPlayer(myType = 1, brain = aiPlayer.brain)
+            val eval = SelfPlaySandbox.evalVsRandomSummary(
+                aiX = aiPlayer,
+                aiO = aiO,
+                gamesAsXSecond = 1000,
+                gamesAsOFirst = 1000
+            )
+            MyLog.add("Eval vs Random (epsilon=0): X second ${eval.winsAsXSecond}/${eval.gamesAsXSecond} (${eval.winRateAsXSecond * 100}%), " +
+                    "O first ${eval.winsAsOFirst}/${eval.gamesAsOFirst} (${eval.winRateAsOFirst * 100}%), Overall ${eval.overallWinRate * 100}%")
+            MyLog.add("AI brain size after Training: ${aiPlayer.brain.size()}")
+
+            gameCount += 5 * 500;
         }
-
-        gameCount += loops * eachTimes;
     }
 
     val viewState = TicTacToePresenter.present(state)
