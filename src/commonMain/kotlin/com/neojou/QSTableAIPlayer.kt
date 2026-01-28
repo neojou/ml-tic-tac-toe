@@ -57,6 +57,11 @@ class QSTableAIPlayer(
      */
     override fun refine(iGameResult: Int) {
         episode.refine(table, iGameResult)
+        var currentEpisode = episode
+        repeat(3) { _ ->  // + 3 旋轉
+            currentEpisode = currentEpisode.clockwise()
+            currentEpisode.refine(table, iGameResult)
+        }
     }
 
     // 移除 resetEpisode()，取代為以下兩個新方法

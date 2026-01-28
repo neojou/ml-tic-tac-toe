@@ -34,6 +34,53 @@ class Episode {
     }
 
     /**
+     * 新增：順時針旋轉 90° 的新 Episode（clone 並轉換每個 step）
+     * 利用棋盤對稱性，增加學習資料
+     */
+    fun clockwise(): Episode {
+        val newEpisode = Episode()
+        _steps.forEach { step ->
+            val rotatedSa = rotateBoard(step.sa)
+            val rotatedChosenPos = rotatePos(step.chosenPos)
+            val rotatedLegal = step.legalPos.map { rotatePos(it) }.toIntArray().sortedArray()  // 轉換並排序
+            newEpisode.append(rotatedSa, rotatedChosenPos, rotatedLegal.toList(), step.playerType)
+        }
+        return newEpisode
+    }
+
+    // 輔助：順時針 90° 旋轉 BoardStatus (3x3 位置映射)
+    private fun rotateBoard(sa: BoardStatus): BoardStatus {
+        val oldArray = sa.copyArray()
+        val newArray = IntArray(9)
+        newArray[0] = oldArray[6]  // 0 <- 6
+        newArray[1] = oldArray[3]  // 1 <- 3
+        newArray[2] = oldArray[0]  // 2 <- 0
+        newArray[3] = oldArray[7]  // 3 <- 7
+        newArray[4] = oldArray[4]  // 4 <- 4 (中心不變)
+        newArray[5] = oldArray[1]  // 5 <- 1
+        newArray[6] = oldArray[8]  // 6 <- 8
+        newArray[7] = oldArray[5]  // 7 <- 5
+        newArray[8] = oldArray[2]  // 8 <- 2
+        return BoardStatus(newArray)
+    }
+
+    // 輔助：順時針 90° 旋轉單一位置 (0-8 映射)
+    private fun rotatePos(oldPos: Int): Int {
+        return when (oldPos) {
+            0 -> 2
+            1 -> 5
+            2 -> 8
+            3 -> 1
+            4 -> 4
+            5 -> 7
+            6 -> 0
+            7 -> 3
+            8 -> 6
+            else -> oldPos  // 無效 pos 保持
+        }
+    }
+
+    /**
      * Game end refinement (very simple version, per your current idea):
      * - O wins: O moves +10, X moves +1
      * - X wins: X moves +10, O moves +1
