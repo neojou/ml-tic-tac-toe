@@ -37,6 +37,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     // 更新：Forget 函數，使用新方法清 QSTable
     fun onForget() {
         aiPlayer.resetForForget()
+        gameCount = 0
         MyLog.add("Forgot all records")
     }
 
