@@ -70,27 +70,32 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     }
 
     fun onGoHome() {
-        val times: Int = 1000
-        MyLog.add("GoHome clicked: starting $times self-play games... (total ~${times * 3} games)")
+        // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新。
+        val loops = 5      // 大循環 5 次
+        val eachTimes = 200  // 每輪每種模式跑 200 盤
+        MyLog.add("GoHome clicked: starting $loops loops × $eachTimes each (total ~${loops * eachTimes * 3} games)...")
 
         scope.launch {
-            val stats = SelfPlaySandbox.runSelfPlay(times, sharedTable = sharedTable) { completed, currentStats ->
-                // 進度 log（簡化，只印主要）
-                MyLog.add("Progress: $completed/${times * 3} games - " +
-                        "SelfPlay WR: ${currentStats.selfPlayWinRate * 100}%, " +
-                        "VsRandom After: ${currentStats.vsRandomAfterWinRate * 100}%, " +
-                        "VsRandom First: ${currentStats.vsRandomFirstWinRate * 100}%")
+            val stats = SelfPlaySandbox.runSelfPlay(
+                loops = loops,
+                eachTimes = eachTimes,
+                sharedTable = sharedTable
+            ) {  completed, currentStats ->
+    //            MyLog.add("Progress: $completed/${loops * eachTimes * 3} games - " +
+    //                    "SelfPlay WR: ${currentStats.selfPlayWinRate * 100}%, " +
+    //                    "VsRandom After: ${currentStats.vsRandomAfterWinRate * 100}%, " +
+    //                    "VsRandom First: ${currentStats.vsRandomFirstWinRate * 100}%")
             }
 
-            // 結束總結
-            gameCount += times * 3  // 總學習盤數
-            MyLog.add("Self-play finished: ${times * 3} games learned, total Times: $gameCount")
+            MyLog.add("All loops finished!")
             MyLog.add("Final Stats:")
             MyLog.add("- SelfPlay WinRate: ${stats.selfPlayWinRate * 100}% (${stats.selfPlayWins}/${stats.numSelfPlay})")
             MyLog.add("- VsRandom (AI After): ${stats.vsRandomAfterWinRate * 100}% (${stats.vsRandomAfterWins}/${stats.numVsRandomAfter})")
             MyLog.add("- VsRandom (AI First): ${stats.vsRandomFirstWinRate * 100}% (${stats.vsRandomFirstWins}/${stats.numVsRandomFirst})")
             MyLog.add("- Overall VsRandom: ${stats.overallVsRandomWinRate * 100}%")
         }
+
+        gameCount += loops * eachTimes;
     }
 
     val viewState = TicTacToePresenter.present(state)

@@ -88,32 +88,41 @@ class Episode {
      *
      * You can later replace this with proper RL (reward, gamma discount, backward update, etc.)
      */
+    // Donald Michie 的 MENACE (1961) +3（win）、+1（draw）、-1（loss），所有步驟都更新。
     fun refine(
         table: QSTable,
-        outcome: Int,  // O win: 1 , X win: 2, Draw: 0
-        winDelta: Int = 5,
-        loseDelta: Int = -2,
-        drawDelta: Int = 1,
+        outcome: Int,
+        winDelta: Int = 3,     // 調低
+        loseDelta: Int = 1,   // 加強懲罰
+        drawDelta: Int = -1,    // 調低
         gamma: Double = 0.95,
     ) {
-
-        var factor = 1.0 // terminal step factor=1, previous *= gamma ...
+        var factor = 1.0
 
         forEachReversed { step ->
             val pt = table.ensureBuilt(step.sa, step.legalPos.toList(), defaultWeight = 1)
 
             val baseDelta = when (outcome) {
                 0 -> drawDelta
-                1 -> if (step.playerType == 1) winDelta else loseDelta
-                2 -> if (step.playerType == 2) winDelta else loseDelta
+                1 -> if (step.playerType == 1) winDelta else loseDelta   // O win → X 輸
+                2 -> if (step.playerType == 2) winDelta else loseDelta   // X win → O 輸
                 else -> 0
             }
 
-            // 若你之後要折扣：讓越接近終局的步驟加分越大（或越小），可調 gamma
             val delta = (baseDelta * factor).toInt()
 
             if (delta != 0) {
                 pt.addWeight(step.chosenPos, delta)
+
+                // 輸的時候：其他合法行動 +1（鼓勵探索替代）
+                if (baseDelta < 0) {  // loss
+                    val altDelta = 1  // 固定小幅提升
+                    step.legalPos.forEach { pos ->
+                        if (pos != step.chosenPos) {
+                            pt.addWeight(pos, altDelta)
+                        }
+                    }
+                }
             }
 
             factor *= gamma

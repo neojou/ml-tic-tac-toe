@@ -5,12 +5,9 @@ import kotlin.random.Random
 
 object SelfPlaySandbox {
 
-    /**
-     * 運行自我對弈與對隨機對手的對局，每種模式固定跑 numGames 次。
-     * 總盤數 = 3 × numGames（自玩 + AI後手vs隨機 + AI先手vs隨機）
-     */
     fun runSelfPlay(
-        numGames: Int,
+        loops: Int,
+        eachTimes: Int,
         sharedTable: QSTable,
         onProgress: (completed: Int, stats: SelfPlayStats) -> Unit = { _, _ -> }
     ): SelfPlayStats {
@@ -19,55 +16,71 @@ object SelfPlaySandbox {
         val aiNatureStupid = RandomAIPlayer()
 
         var selfPlayWins = 0
-        var vsRandomAfterWins = 0   // AI 後手 vs random 先手
-        var vsRandomFirstWins = 0   // AI 先手 vs random 後手
+        var vsRandomAfterWins = 0
+        var vsRandomFirstWins = 0
 
-        val totalGames = numGames * 3
+        val totalGames = loops * eachTimes * 3
 
-        // 第一輪：自玩 (aiO vs aiX)
-        repeat(numGames) { i ->
-            val (finalState, aiWin) = playGame(aiO, aiX, true)
-            if (aiWin) selfPlayWins++
+        repeat(loops) { loopIndex ->
+            MyLog.add("Starting loop ${loopIndex + 1}/$loops (eachTimes=$eachTimes)")
 
-            aiO.refine(finalState.iGameResult)
-            aiX.refine(finalState.iGameResult)
+            // 第一輪：自玩（全部蒐集並 refine）
+            val allEpisodes = AllEpisodes()
+            repeat(eachTimes) { i ->
+                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiX, true)
+                if (aiWin) selfPlayWins++
 
-            val completed = i + 1
-            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
+                // 自玩：全部加入（無論輸贏）
+                allEpisodes.add(aiEpisode, finalState.iGameResult)
+
+                val completed = (loopIndex * eachTimes * 3) + i + 1
+                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
+            }
+
+            // 第二輪：AI 後手 vs random 先手（只輸才蒐集）
+            repeat(eachTimes) { i ->
+                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = false)
+                if (aiWin) vsRandomAfterWins++
+
+                // 只在 AI 輸時加入 episode（aiWin == false）
+                if (!aiWin) {
+                   allEpisodes.add(aiEpisode, finalState.iGameResult)
+                }
+
+                val completed = (loopIndex * eachTimes * 3) + eachTimes + i + 1
+                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
+            }
+
+            // 第三輪：AI 先手 vs random 後手（只輸才蒐集）
+            repeat(eachTimes) { i ->
+                val (finalState, aiWin, aiEpisode) = playGameCollectEpisodes(aiO, aiNatureStupid, false, aiFirst = true)
+                if (aiWin) vsRandomFirstWins++
+
+                // 只在 AI 輸時加入 episode
+                if (!aiWin) {
+                    allEpisodes.add(aiEpisode, finalState.iGameResult)
+                }
+
+                val completed = (loopIndex * eachTimes * 3) + eachTimes * 2 + i + 1
+                onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops))
+            }
+            allEpisodes.refineAll(sharedTable)
+
+            MyLog.add("Loop ${loopIndex + 1} finished. Current stats: SelfPlay ${selfPlayWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
+                    "VsRandom After ${vsRandomAfterWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%, " +
+                    "VsRandom First ${vsRandomFirstWins.toDouble() / (eachTimes * (loopIndex + 1)) * 100}%")
         }
 
-        // 第二輪：AI 後手 vs random 先手
-        repeat(numGames) { i ->
-            val (finalState, aiWin) = playGame(aiO, aiNatureStupid, false, aiFirst = false)
-            if (aiWin) vsRandomAfterWins++
-
-            aiO.refine(finalState.iGameResult)
-
-            val completed = numGames + i + 1
-            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
-        }
-
-        // 第三輪：AI 先手 vs random 後手
-        repeat(numGames) { i ->
-            val (finalState, aiWin) = playGame(aiO, aiNatureStupid, false, aiFirst = true)
-            if (aiWin) vsRandomFirstWins++
-
-            aiO.refine(finalState.iGameResult)
-
-            val completed = numGames * 2 + i + 1
-            onProgress(completed, SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames))
-        }
-
-        return SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, numGames, numGames, numGames)
+        return SelfPlayStats(selfPlayWins, vsRandomAfterWins, vsRandomFirstWins, eachTimes * loops, eachTimes * loops, eachTimes * loops)
     }
 
-    // playGame 保持不變（您的原版）
-    private fun playGame(
+    // playGameCollectEpisodes 保持原樣（回傳 AI 的 episode）
+    private fun playGameCollectEpisodes(
         ai: QSTableAIPlayer,
         opponent: AIPlayer,
         isSelfPlay: Boolean,
         aiFirst: Boolean = true
-    ): Pair<GameState, Boolean> {
+    ): Triple<GameState, Boolean, Episode> {
         ai.resetForGame()
         if (isSelfPlay) (opponent as QSTableAIPlayer).resetForGame()
 
@@ -91,15 +104,38 @@ object SelfPlaySandbox {
         }
 
         val aiWin = state.iGameResult == ai.myType
+        val aiEpisode = ai.episode
 
-        if (isSelfPlay) {
-            (opponent as QSTableAIPlayer).refine(state.iGameResult)
-        }
-
-        return state to aiWin
+        return Triple(state, aiWin, aiEpisode)
     }
 }
 
+// AllEpisodes 和 SelfPlayStats 保持不變
+class AllEpisodes {
+    private val episodes = mutableListOf<Pair<Episode, Int>>()
+
+    fun add(episode: Episode, outcome: Int) {
+        episodes.add(episode to outcome)
+    }
+
+    fun clear() {
+        episodes.clear()
+    }
+
+    fun refineAll(table: QSTable) {
+        episodes.forEach { (episode, outcome) ->
+            episode.refine(table, outcome)
+            var current = episode
+            repeat(3) {
+                current = current.clockwise()
+                current.refine(table, outcome)
+            }
+        }
+        MyLog.add("Batch refine completed: ${episodes.size} episodes processed (only losses for vs random)")
+    }
+}
+
+// SelfPlayStats 不變
 data class SelfPlayStats(
     val selfPlayWins: Int,
     val vsRandomAfterWins: Int,
