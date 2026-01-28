@@ -7,15 +7,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlin.random.Random
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun TicTacToeGame(modifier: Modifier = Modifier) {
     var state by remember { mutableStateOf(GameState()) }
     var gameCount by remember { mutableStateOf(0) }  // 追蹤學習場數
 
+    // NEW: 共享 table (記住一個實例)
+    val sharedTable = remember { QSTable() }
+
     // 之後可換更強的 AI；若 AI 本身無狀態，這樣記住一個實例即可
 //    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
-    val aiPlayer = remember { QSTableAIPlayer() }
+    //val aiPlayer = remember { QSTableAIPlayer() }
+    // MOD: aiPlayer 注入 sharedTable
+    val aiPlayer = remember { QSTableAIPlayer(myType = 2, table = sharedTable) }
+
+// NEW: coroutine scope (非阻塞 self-play)
+    val scope = rememberCoroutineScope()
 
     fun newGame() {
         // 新增：隨機決定誰先手 (1=O 人先, 2=X AI 先)
@@ -59,6 +69,22 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         MyLog.add("Analyzed records")
     }
 
+    // NEW: GoHome 啟動 sandbox
+    fun onGoHome() {
+        var times : Int = 100000
+        scope.launch {
+            SelfPlaySandbox.runSelfPlay(times, sharedTable) { completed ->
+                if (completed == times) {
+                    gameCount += times  // 結束後更新計數 (視為額外學習)
+                    MyLog.add("Self-play finished: +100 games learned, total Times: $gameCount")
+                } else {
+                    //MyLog.add("Self-play progress: $completed/100 games")
+                }
+            }
+        }
+        MyLog.add("GoHome clicked: starting 100 self-play games...")
+    }
+
     val viewState = TicTacToePresenter.present(state)
 
     TicTacToeScreen(
@@ -69,6 +95,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         onNewGame = ::newGame,
         onForget = ::onForget,
         onAnalyze = ::onAnalyze,
-        gameCount = gameCount  // 傳入計數
+        onGoHome = ::onGoHome,  // NEW: 傳入
+        gameCount = gameCount
     )
 }

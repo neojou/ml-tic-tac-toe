@@ -48,20 +48,57 @@ object TicTacToeEngine {
         return GameState(turn = initialTurn)
     }
 
+
+    // NEW: 靜默套用一步 (無 log/actor，用於 sandbox)
+    fun simulateMove(prev: GameState, pos: Int): GameState {
+        val cur = prev.board[pos]
+        if (cur != 0) return prev  // 無效，狀態不變
+
+        val nextBoard = BoardStatus(prev.board.copyArray())
+        nextBoard.set(pos, prev.turn)
+
+        val moves2 = prev.moves + 1
+
+        val winner = TicTacToeRules.checkWinner(nextBoard)
+        if (winner == prev.turn) {
+            return prev.copy(
+                board = nextBoard,
+                moves = moves2,
+                gameOver = true,
+                iGameResult = prev.turn,
+                gameResult = if (prev.turn == 1) "O is the winner" else "X is the winner"
+            )
+        }
+
+        if (TicTacToeRules.isDraw(moves2, winner)) {
+            return prev.copy(
+                board = nextBoard,
+                moves = moves2,
+                gameOver = true,
+                iGameResult = 0,
+                gameResult = "Draw"
+            )
+        }
+
+        val nextTurn = if (prev.turn == 1) 2 else 1
+        return prev.copy(board = nextBoard, moves = moves2, turn = nextTurn)
+    }
+
     /**
      * 新增：如果 AI 先手，立即讓 AI 下第一步 (用於 newGame)
      */
+
+    // MOD: aiFirstMove 內部改用 simulateMove (但保留 logs；sandbox 不需此)
     fun aiFirstMove(initialState: GameState, aiPlayer: AIPlayer): GameUpdate {
-        if (initialState.turn != 2) return GameUpdate(initialState)  // 非 AI 先，無動作
+        if (initialState.turn != 2) return GameUpdate(initialState)
 
         val aiPos = aiPlayer.chooseMove(initialState.board)
         if (aiPos == null || initialState.board[aiPos] != 0) return GameUpdate(initialState)
 
-        val update = applyMove(initialState, aiPos, actor = "AI First Move")
-        return GameUpdate(
-            state = update.state,
-            logs = update.logs
-        )
+        // MOD: 用 simulateMove 計算新狀態，再包 logs
+        val newState = simulateMove(initialState, aiPos)
+        val logs = listOf("AI First Move on A[$aiPos], A[$aiPos] is ${TicTacToeRules.cellToChar(2)}")
+        return GameUpdate(newState, logs)
     }
 
     /**
@@ -113,4 +150,6 @@ object TicTacToeEngine {
             logs
         )
     }
+
+
 }

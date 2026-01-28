@@ -3,12 +3,13 @@ package com.neojou
 import kotlin.math.exp
 import kotlin.random.Random
 
+// MOD: 建構子新增 table 參數 (必填)
 class QSTableAIPlayer(
     private val myType: Int = 2,
+    private val table: QSTable,  // NEW: 外部注入，支持共享
     private val temperature: Double = 1.0,
 ) : FirstEmptyAIPlayer() {
 
-    val table = QSTable()
     val episode = Episode()
 
     private val oppType: Int = if (myType == 1) 2 else 1
@@ -70,7 +71,7 @@ class QSTableAIPlayer(
     override fun resetForGame() {
         episode.clear()
         lastAfterMyMove = null
-        MyLog.add("Reset for new game: cleared episode and lastAfterMyMove (QSTable preserved)")
+        //MyLog.add("Reset for new game: cleared episode and lastAfterMyMove (QSTable preserved)")
     }
 
     // 新增：Forget 時重置所有學習

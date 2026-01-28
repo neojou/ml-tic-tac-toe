@@ -39,6 +39,7 @@ fun TicTacToeScreen(
     onNewGame: () -> Unit,
     onForget: () -> Unit = {},  // 新增：Forget 按鈕的回調
     onAnalyze: () -> Unit = {}, // 新增：Analyze 按鈕的回調
+    onGoHome: () -> Unit = {},  // NEW
     gameCount: Int = 0,        // 新增：AI 學習場數，用於顯示
 ) {
     Scaffold(
@@ -49,6 +50,7 @@ fun TicTacToeScreen(
                 onNewGame = onNewGame,
                 onForget = onForget,    // 傳入
                 onAnalyze = onAnalyze,  // 傳入
+                onGoHome = onGoHome,  // NEW: 傳入
                 gameCount = gameCount   // 新增：傳入計數
             )
         },
@@ -90,6 +92,7 @@ private fun TopMenuBar(
     onNewGame: () -> Unit,
     onForget: () -> Unit,    // 新增參數
     onAnalyze: () -> Unit,   // 新增參數
+    onGoHome: () -> Unit,  // NEW
     gameCount: Int = 0,      // 新增：AI 學習場數
 ) {
     Row(
@@ -127,6 +130,17 @@ private fun TopMenuBar(
         ) {
             Text(
                 text = "Analyze",
+                style = MaterialTheme.typography.titleSmall
+            )
+        }
+
+// NEW: GoHome 按鈕
+        TextButton(
+            onClick = onGoHome,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "GoHome",
                 style = MaterialTheme.typography.titleSmall
             )
         }
