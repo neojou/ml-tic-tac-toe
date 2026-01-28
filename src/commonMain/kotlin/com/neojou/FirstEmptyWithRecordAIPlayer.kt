@@ -59,6 +59,12 @@ class FirstEmptyWithRecordAIPlayer(
         lastAfterMyMove = null
     }
 
+    // 新增：override clearRecords()，清空 QSTable 和相關狀態
+    override fun clearRecords() {
+        resetEpisode()
+        MyLog.add("Cleared QSTable and episode records")
+    }
+
     private fun tryGetSingleMovePosOrNull(sa: BoardStatus, sb: BoardStatus): Int? {
         return try {
             BoardAnalyze.getPos(sa, sb)

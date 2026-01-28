@@ -6,12 +6,4 @@ open class FirstEmptyAIPlayer : AIPlayer {
         return BoardAnalyze.getEmptyPosSet(board).minOrNull()
     }
 
-    override fun showRecords() {
-        return
-    }
-
-    override fun addLastMove(board: BoardStatus) {
-        return
-    }
-
 }

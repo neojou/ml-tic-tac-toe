@@ -69,6 +69,12 @@ class QSTableAIPlayer(
         episode.show(table, "Episode")
     }
 
+    // 新增：override clearRecords()，清空 QSTable 和相關狀態
+    override fun clearRecords() {
+        resetEpisode()
+        MyLog.add("Cleared QSTable and episode records")
+    }
+
     override fun addLastMove(board: BoardStatus) {
         val sPrev = lastAfterMyMove ?: emptyS0
         val oppPos = tryGetSingleMovePosOrNull(sPrev, board) ?: return
@@ -109,7 +115,7 @@ class QSTableAIPlayer(
 
         val maxS = scores.maxOf { it.second }
 
-        // softmax (max-shift for numerical stability), exp() in kotlin.math [web:67]
+        // softmax (max-shift for numerical stability), exp() in kotlin.math
         val weights: List<Pair<Int, Double>> =
             scores.map { (pos, s) -> pos to exp((s - maxS) / temperature) }
 

@@ -14,4 +14,10 @@ interface AIPlayer {
     fun addLastMove(board: BoardStatus) { return }
 
     fun refine(iGameResult: Int) { return }
+
+    /**
+     * 清空所有記錄，包括 QSTable 和 episode。
+     * 預設不做事；有記錄功能的 AI 再 override。
+     */
+    fun clearRecords() { return }
 }

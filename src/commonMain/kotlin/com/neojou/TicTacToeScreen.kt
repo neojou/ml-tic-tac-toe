@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,13 +37,17 @@ fun TicTacToeScreen(
     clickEnabled: Boolean = true,
     onCellClick: (Int) -> Unit,
     onNewGame: () -> Unit,
+    onForget: () -> Unit = {},  // 新增：Forget 按鈕的回調
+    onAnalyze: () -> Unit = {}, // 新增：Analyze 按鈕的回調
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopMenuBar(
                 modifier = Modifier.fillMaxWidth(),
-                onNewGame = onNewGame
+                onNewGame = onNewGame,
+                onForget = onForget,    // 傳入
+                onAnalyze = onAnalyze   // 傳入
             )
         },
         bottomBar = {
@@ -80,36 +86,46 @@ fun TicTacToeScreen(
 private fun TopMenuBar(
     modifier: Modifier = Modifier,
     onNewGame: () -> Unit,
+    onForget: () -> Unit,    // 新增參數
+    onAnalyze: () -> Unit,   // 新增參數
 ) {
-    var gameMenuOpen by remember { mutableStateOf(false) }
-
     Row(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceEvenly  // 新增：平均分佈按鈕
     ) {
-        Box {
+        TextButton(
+            onClick = onNewGame,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+        ) {
             Text(
-                text = "Game ▾",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                    .clickable { gameMenuOpen = true }
+                text = "New",
+                style = MaterialTheme.typography.titleSmall
             )
+        }
 
-            DropdownMenu(
-                expanded = gameMenuOpen,
-                onDismissRequest = { gameMenuOpen = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("New") },
-                    onClick = {
-                        gameMenuOpen = false
-                        onNewGame()
-                    }
-                )
-            }
+        // 新增：Forget 按鈕
+        TextButton(
+            onClick = onForget,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "Forget",
+                style = MaterialTheme.typography.titleSmall
+            )
+        }
+
+        // 新增：Analyze 按鈕
+        TextButton(
+            onClick = onAnalyze,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "Analyze",
+                style = MaterialTheme.typography.titleSmall
+            )
         }
     }
 }
