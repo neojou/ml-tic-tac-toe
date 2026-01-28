@@ -71,16 +71,20 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
 
     // NEW: GoHome 啟動 sandbox
     fun onGoHome() {
-        var times : Int = 100000
+        var times : Int = 1000
         scope.launch {
-            SelfPlaySandbox.runSelfPlay(times, sharedTable) { completed ->
+            val stats = SelfPlaySandbox.runSelfPlay(times, selfPlayRatio = 0.7, sharedTable = sharedTable)
+            { completed, stats ->
                 if (completed == times) {
                     gameCount += times  // 結束後更新計數 (視為額外學習)
-                    MyLog.add("Self-play finished: +100 games learned, total Times: $gameCount")
+                    MyLog.add("Self-play finished: $times games learned, total Times: $gameCount")
+                    MyLog.add("Progress: $completed/$times, SelfPlay WinRate: ${stats.selfPlayWinRate}, VsRandom: ${stats.vsRandomWinRate}")
+
                 } else {
-                    //MyLog.add("Self-play progress: $completed/100 games")
+                    MyLog.add("Self-play progress: $completed/$times games")
                 }
             }
+            MyLog.add("Final: SelfPlay ${stats.selfPlayWinRate}, VsRandom ${stats.vsRandomWinRate}")
         }
         MyLog.add("GoHome clicked: starting 100 self-play games...")
     }

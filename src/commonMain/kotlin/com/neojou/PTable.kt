@@ -56,7 +56,7 @@ class PTable(
 
     fun addWeight(pos: Int, delta: Int) {
         val w = getWeight(pos)
-        val nw = (w + delta).coerceAtLeast(0)
+        val nw = (w + delta).coerceAtLeast(1) // 從0改成1, 為了負懲罰, 避免過度懲罰，探索死
         setWeight(pos, nw)
     }
 

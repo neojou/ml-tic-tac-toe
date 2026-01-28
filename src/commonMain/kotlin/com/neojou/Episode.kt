@@ -90,20 +90,12 @@ class Episode {
      */
     fun refine(
         table: QSTable,
-        outcome: Int,
+        outcome: Int,  // O win: 1 , X win: 2, Draw: 0
         winDelta: Int = 5,
-        loseDelta: Int = 1,
+        loseDelta: Int = -2,
         drawDelta: Int = 2,
-        gamma: Double = 0.95, // 先保留；目前可設 1.0 等於不折扣
+        gamma: Double = 0.95,
     ) {
-        /*
-        // parse outcome from your current GameState.gameResult text
-        val outcome: Int? = when {
-            gameResult.startsWith("O") -> 1
-            gameResult.startsWith("X") -> 2
-            gameResult.startsWith("Draw") -> 0
-            else -> null
-        } */
 
         var factor = 1.0 // terminal step factor=1, previous *= gamma ...
 
