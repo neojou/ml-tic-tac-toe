@@ -39,6 +39,7 @@ fun TicTacToeScreen(
     onNewGame: () -> Unit,
     onForget: () -> Unit = {},  // 新增：Forget 按鈕的回調
     onAnalyze: () -> Unit = {}, // 新增：Analyze 按鈕的回調
+    gameCount: Int = 0,        // 新增：AI 學習場數，用於顯示
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -47,7 +48,8 @@ fun TicTacToeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 onNewGame = onNewGame,
                 onForget = onForget,    // 傳入
-                onAnalyze = onAnalyze   // 傳入
+                onAnalyze = onAnalyze,  // 傳入
+                gameCount = gameCount   // 新增：傳入計數
             )
         },
         bottomBar = {
@@ -88,6 +90,7 @@ private fun TopMenuBar(
     onNewGame: () -> Unit,
     onForget: () -> Unit,    // 新增參數
     onAnalyze: () -> Unit,   // 新增參數
+    gameCount: Int = 0,      // 新增：AI 學習場數
 ) {
     Row(
         modifier = modifier
@@ -127,6 +130,13 @@ private fun TopMenuBar(
                 style = MaterialTheme.typography.titleSmall
             )
         }
+
+        // 新增：在 Analyze 旁邊顯示 Times: NN
+        Text(
+            text = "Times: $gameCount",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 4.dp)  // 小間距
+        )
     }
 }
 

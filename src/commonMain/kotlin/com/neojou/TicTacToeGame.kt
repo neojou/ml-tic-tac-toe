@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 @Composable
 fun TicTacToeGame(modifier: Modifier = Modifier) {
     var state by remember { mutableStateOf(GameState()) }
+    var gameCount by remember { mutableStateOf(0) }  // 新增：追蹤學習場數
 
     // 之後可換更強的 AI；若 AI 本身無狀態，這樣記住一個實例即可
 //    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
@@ -28,6 +29,8 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         if (state.gameOver) {
             aiPlayer.refine(state.iGameResult)
             aiPlayer.showRecords()
+            gameCount++  // 新增：遊戲結束學習後計數 +1
+            MyLog.add("Game learned: total count = $gameCount")
         }
     }
 
@@ -52,6 +55,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         onCellClick = ::onCellClick,
         onNewGame = ::newGame,
         onForget = ::onForget,
-        onAnalyze = ::onAnalyze
+        onAnalyze = ::onAnalyze,
+        gameCount = gameCount  // 新增：傳入計數
     )
 }
