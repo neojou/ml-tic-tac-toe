@@ -19,6 +19,8 @@ data class EpisodeStep(
 
 class Episode {
 
+    private val TAG = "Episode"
+
     private val _steps = mutableListOf<EpisodeStep>()
     val steps: List<EpisodeStep> get() = _steps
 
@@ -116,7 +118,7 @@ class Episode {
             if (step.playerType == myType) {
                 if (BoardAnalyze.isBlockingThreat(step.sa, step.chosenPos, myType)) {
                     baseDelta += blockBonus
-                    MyLog.add("Found Blocking Threat!")
+                    MyLog.add(TAG, "Found Blocking Threat!", LogLevel.DEBUG)
                 }
                 if (BoardAnalyze.isCreatingThreat(step.sa, step.chosenPos, myType)) {
                     baseDelta += threatBonus
@@ -144,11 +146,11 @@ class Episode {
     }
 
     fun show(table: QSTable, title: String = "Episode") {
-        MyLog.add("$title size=${_steps.size}")
+        MyLog.add(TAG, "$title size=${_steps.size}")
         _steps.forEachIndexed { idx, step ->
             val pt = table.getOrNull(step.sa)
             val w = pt?.getWeight(step.chosenPos)
-            MyLog.add(
+            MyLog.add(TAG,
                 "[$idx] sa=${boardToString(step.sa)}, pos=${step.chosenPos}, weight=$w, legal=${step.legalPos.contentToString()}, player=${step.playerType}"
             )
         }

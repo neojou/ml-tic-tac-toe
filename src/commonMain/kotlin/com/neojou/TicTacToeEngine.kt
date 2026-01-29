@@ -8,6 +8,7 @@ data class GameUpdate(
 )
 
 object TicTacToeEngine {
+    private val TAG = "TicTacToeEngine"
 
     /**
      * @param aiPlayer 若為 null，則維持純雙人輪流；若非 null，輪到 X 時自動下子
@@ -23,14 +24,14 @@ object TicTacToeEngine {
 
         // 若已啟用 AI，且現在輪到 X，忽略人類點擊（避免「搶下 X」）
         if (aiPlayer != null && prev.turn == 2) {
-            MyLog.add("AI turn (X), ignore human click")
+            MyLog.add(TAG, "AI turn (X), ignore human click", LogLevel.DEBUG)
             return GameUpdate(prev)
         }
 
         // 人類下
         val humanUpdate = applyMove(prev, pos, actor = "Mouse Click", aiPlayer = aiPlayer)
         if (humanUpdate.state == prev) {
-            MyLog.add("Invalid human move (pos occupied), skip")
+            MyLog.add(TAG, "Invalid human move (pos occupied), skip", LogLevel.DEBUG)
             return humanUpdate
         }
         if (humanUpdate.state.gameOver) {
@@ -51,7 +52,7 @@ object TicTacToeEngine {
                     logs = humanUpdate.logs + "AI chooses A[$aiPos]" + aiUpdate.logs
                 )
             } else {
-                MyLog.add("AI no valid move or pos occupied")
+                MyLog.add(TAG, "AI no valid move or pos occupied", LogLevel.DEBUG)
             }
         }
 
@@ -67,7 +68,7 @@ object TicTacToeEngine {
 
         val cur = prev.board[pos]
         if (cur != 0) {
-            MyLog.add("Invalid move: pos $pos already occupied by ${TicTacToeRules.cellToChar(cur)}")
+            MyLog.add(TAG, "Invalid move: pos $pos already occupied by ${TicTacToeRules.cellToChar(cur)}", LogLevel.DEBUG)
             return GameUpdate(
                 prev,
                 listOf("$actor on A[$pos], A[$pos] has been put ${TicTacToeRules.cellToChar(cur)} already")
@@ -174,13 +175,13 @@ object TicTacToeEngine {
         //MyLog.add("aiFirstMove called: turn=${initialState.turn}")
 
         if (initialState.turn != 2) {
-            MyLog.add("Not AI first turn, skip")
+            MyLog.add(TAG, "Not AI first turn, skip", LogLevel.DEBUG)
             return GameUpdate(initialState)
         }
 
         val aiPos = aiPlayer.chooseMove(initialState.board)
         if (aiPos == null || initialState.board[aiPos] != 0) {
-            MyLog.add("AI no valid first move or pos occupied")
+            MyLog.add(TAG, "AI no valid first move or pos occupied", LogLevel.DEBUG)
             return GameUpdate(initialState)
         }
 

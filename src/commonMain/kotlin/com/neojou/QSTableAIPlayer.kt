@@ -11,6 +11,8 @@ class QSTableAIPlayer(
     private val temperature: Double = 1.0, // 初始 temperature (可忽略，動態計算會覆蓋)
 ) : FirstEmptyAIPlayer() {
 
+    private val TAG = "QSTableAIPlayer"
+
     var globalGames = 0 // 改為 var，讓 refine 遞增
 
     val episode = Episode()
@@ -86,7 +88,7 @@ class QSTableAIPlayer(
         episode.clear()
         lastAfterMyMove = null
         globalGames = 0  // 新增：Forget 時重置計數 (可選，依需求)
-        MyLog.add("Reset for forget: cleared QSTable, episode, and lastAfterMyMove")
+        MyLog.add(TAG, "Reset for forget: cleared QSTable, episode, and lastAfterMyMove")
     }
 
     // 更新：clearRecords() 現在呼叫 resetForForget()
@@ -96,8 +98,9 @@ class QSTableAIPlayer(
 
     override fun showRecords() {
         table.show("QSTable")
-        episode.show(table, "Episode")
-        MyLog.add("Global games played: $globalGames (current temp: ${max(0.1, 1.0 - globalGames / 10000.0)})")
+        episode.show(table,"Episode")
+        MyLog.add(TAG, "Global games played: $globalGames (current temp: max(0.1, 1.0 - $globalGames / 10000.0)})")
+
     }
 
     override fun addLastMove(board: BoardStatus) {

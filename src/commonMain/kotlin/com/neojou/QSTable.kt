@@ -4,6 +4,8 @@ private fun boardToString(b: BoardStatus): String =
     b.copyArray().joinToString(prefix = "[", postfix = "]", separator = ",")
 
 class QSTable {
+    private val TAG = "QSTable"
+
     // 修改：key 從 BoardStatus 改為 String (boardToString)，確保相同盤面共享 PTable
     private val qs: HashMap<String, PTable> = HashMap()
 
@@ -37,12 +39,12 @@ class QSTable {
     }
 
     fun show(title: String = "QSTable") {
-        MyLog.add("$title size=${qs.size}")
+        MyLog.add(TAG, "$title size=${qs.size}")
         qs.entries.forEachIndexed { idx, (key, pt) ->
             val ptableString = pt.entries()
                 .sortedBy { it.first }
                 .joinToString(prefix = "{", postfix = "}") { (pos, w) -> "$pos=$w" }
-            MyLog.add("[$idx] sa=$key, hasBuilt=${pt.hasBuilt}, ptable=$ptableString")
+            MyLog.add(TAG, "[$idx] sa=$key, hasBuilt=${pt.hasBuilt}, ptable=$ptableString")
         }
     }
 }

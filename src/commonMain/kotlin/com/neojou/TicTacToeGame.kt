@@ -10,8 +10,11 @@ import kotlin.random.Random
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 
+private val TAG = "TicTacToeGame"
+
 @Composable
 fun TicTacToeGame(modifier: Modifier = Modifier) {
+
     var state by remember { mutableStateOf(GameState()) }
     var gameCount by remember { mutableStateOf(0) }  // 追蹤學習場數
 
@@ -64,13 +67,13 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     fun onForget() {
         aiPlayer.resetForForget()
         gameCount = 0
-        MyLog.add("Forgot all records")
+        MyLog.add(TAG, "Forgot all records")
     }
 
     // Analyze 函數不變
     fun onAnalyze() {
         aiPlayer.showRecords()
-        MyLog.add("Analyzed records")
+        MyLog.add(TAG, "Analyzed records")
     }
 
     fun onGoHome() {
@@ -80,7 +83,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         val evalOFirst = 1000
 
         scope.launch {
-            MyLog.add("AI brain size before Training: ${aiPlayer.brain.size()}")
+            MyLog.add(TAG, "AI brain size before Training: ${aiPlayer.brain.size()}", LogLevel.DEBUG)
             val trainStats = SelfPlaySandbox.trainMixed(
                 aiXFromUi = aiPlayer,
                 loops = 5,
@@ -88,7 +91,7 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
                 selfPlayRatio = 0.8,
                 onProgress = { _, _ -> } // 不逐局印
             )
-            MyLog.add("Training done - SelfPlay winRate: ${trainStats.selfPlayWinRate * 100}%")
+            MyLog.add(TAG, "Training done - SelfPlay winRate: ${trainStats.selfPlayWinRate * 100}%", LogLevel.DEBUG)
 
             val aiO = QLearnAIPlayer(myType = 1, brain = aiPlayer.brain)
             val eval = SelfPlaySandbox.evalVsRandomSummary(
@@ -97,9 +100,9 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
                 gamesAsXSecond = 1000,
                 gamesAsOFirst = 1000
             )
-            MyLog.add("Eval vs Random (epsilon=0): X second ${eval.winsAsXSecond}/${eval.gamesAsXSecond} (${eval.winRateAsXSecond * 100}%), " +
-                    "O first ${eval.winsAsOFirst}/${eval.gamesAsOFirst} (${eval.winRateAsOFirst * 100}%), Overall ${eval.overallWinRate * 100}%")
-            MyLog.add("AI brain size after Training: ${aiPlayer.brain.size()}")
+            MyLog.add(TAG, "Eval vs Random (epsilon=0): X second ${eval.winsAsXSecond}/${eval.gamesAsXSecond} (${eval.winRateAsXSecond * 100}%), " +
+                    "O first ${eval.winsAsOFirst}/${eval.gamesAsOFirst} (${eval.winRateAsOFirst * 100}%), Overall ${eval.overallWinRate * 100}%", LogLevel.DEBUG)
+            MyLog.add(TAG, "AI brain size after Training: ${aiPlayer.brain.size()}", LogLevel.DEBUG)
 
             gameCount += 5 * 500;
         }

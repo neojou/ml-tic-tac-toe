@@ -8,6 +8,8 @@ class FirstEmptyWithRecordAIPlayer(
     private val myType: Int = 2, // 你的 X/O 對應沿用專案慣例；BoardStatus cell 允許 1..2
 ) : FirstEmptyAIPlayer() {
 
+    private val TAG = "FirstEmptyWithRecordAIPlayer"
+
     val table = QSTable()
     val episode = Episode()
 
@@ -59,7 +61,7 @@ class FirstEmptyWithRecordAIPlayer(
     override fun resetForGame() {
         episode.clear()
         lastAfterMyMove = null
-        MyLog.add("Reset for new game: cleared episode and lastAfterMyMove (QSTable preserved)")
+        MyLog.add(TAG, "Reset for new game: cleared episode and lastAfterMyMove (QSTable preserved)", LogLevel.DEBUG)
     }
 
     // 新增：Forget 時重置所有學習
@@ -67,7 +69,7 @@ class FirstEmptyWithRecordAIPlayer(
         table.clear()
         episode.clear()
         lastAfterMyMove = null
-        MyLog.add("Reset for forget: cleared QSTable, episode, and lastAfterMyMove")
+        MyLog.add(TAG, "Reset for forget: cleared QSTable, episode, and lastAfterMyMove", LogLevel.DEBUG)
     }
 
     // 更新：clearRecords() 現在呼叫 resetForForget()
