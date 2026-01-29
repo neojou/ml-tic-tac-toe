@@ -3,18 +3,12 @@ package com.neojou
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
@@ -26,16 +20,13 @@ fun TicTacToeBoard(
     lineWidth: Dp = 4.dp,
     onCellClick: (Int) -> Unit = {}
 ) {
-    var boardSize by remember { mutableStateOf(IntSize.Zero) }
-
     Canvas(
         modifier = modifier
-            .onSizeChanged { boardSize = it }
-            // 重要：用 boardSize 當 key，resize 時 pointerInput 會重啟，命中區才會更新
-            .pointerInput(boardSize) {
+            .pointerInput(Unit) {
                 detectTapGestures { p ->
-                    val cellW = boardSize.width / 3f
-                    val cellH = boardSize.height / 3f
+                    val s = size // PointerInputScope.size (IntSize, px)
+                    val cellW = s.width / 3f
+                    val cellH = s.height / 3f
                     if (cellW <= 0f || cellH <= 0f) return@detectTapGestures
 
                     val c = (p.x / cellW).toInt().coerceIn(0, 2)
@@ -44,7 +35,7 @@ fun TicTacToeBoard(
                 }
             }
     ) {
-        if (size.width <= 0f || size.height <= 0f) return@Canvas  // 新增：避免 0 size 錯誤
+        if (size.width <= 0f || size.height <= 0f) return@Canvas
 
         val w = size.width
         val h = size.height

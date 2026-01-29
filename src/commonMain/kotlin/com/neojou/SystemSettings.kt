@@ -8,7 +8,7 @@ object SystemSettings {
         initialized = true
 
         // MyLog 初始設定
-        MyLog.setGlobalMinLevel(LogLevel.INFO)
+        MyLog.setGlobalMinLevel(LogLevel.DEBUG)
         //MyLog.setModuleMinLevel("AI", LogLevel.DEBUG)
 
         // 其他未來的全域設定也可以放這裡（需保持 commonMain 可用）

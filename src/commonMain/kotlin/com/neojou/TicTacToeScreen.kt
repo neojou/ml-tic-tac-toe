@@ -32,47 +32,60 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun TicTacToeScreen(
     board: BoardStatus,
+    modifier: Modifier = Modifier,
+    onCellClick: (Int) -> Unit,
+) {
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        val side = minOf(maxWidth, maxHeight) * 0.92f
+        val safeSide = if (side <= 0.dp) 180.dp else side
+
+        TicTacToeBoard(
+            bs = board,
+            modifier = Modifier.size(safeSide),
+            onCellClick = onCellClick
+        )
+    }
+}
+
+/*
+@Composable
+fun TicTacToeScreen(
+    board: BoardStatus,
     viewState: TicTacToeViewState,
     modifier: Modifier = Modifier,
     clickEnabled: Boolean = true,
     onCellClick: (Int) -> Unit,
     onNewGame: () -> Unit,
-    onForget: () -> Unit = {},  // 新增：Forget 按鈕的回調
-    onAnalyze: () -> Unit = {}, // 新增：Analyze 按鈕的回調
-    onGoHome: () -> Unit = {},  // NEW
-    gameCount: Int = 0,        // 新增：AI 學習場數，用於顯示
+    onForget: () -> Unit = {},
+    onAnalyze: () -> Unit = {},
+    onGoHome: () -> Unit = {},
+    gameCount: Int = 0,
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopMenuBar(
-                modifier = Modifier.fillMaxWidth(),
-                onNewGame = onNewGame,
-                onForget = onForget,    // 傳入
-                onAnalyze = onAnalyze,  // 傳入
-                onGoHome = onGoHome,  // NEW: 傳入
-                gameCount = gameCount   // 新增：傳入計數
-            )
-        },
-        bottomBar = {
-            BottomBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                viewState = viewState
-            )
-        }
-    ) { innerPadding ->
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        TopMenuBar(
+            modifier = Modifier.fillMaxWidth(),
+            onNewGame = onNewGame,
+            onForget = onForget,
+            onAnalyze = onAnalyze,
+            onGoHome = onGoHome,
+            gameCount = gameCount
+        )
+
+        // 中間：棋盤區，吃掉剩餘高度並置中
         BoxWithConstraints(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+                .fillMaxWidth()
+                .weight(1f)
                 .clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
-            // 只依 content 的 constraints 決定棋盤大小（避免吃到 top/bottom 的空間）
+            // 這裡的 maxWidth/maxHeight 已經是「扣掉 top/bottom 後」中間區域的 constraints
             val side = minOf(maxWidth, maxHeight) * 0.92f
-            // 保底：避免偶發 constraints 為 0 時棋盤不顯示
             val safeSide = if (side <= 0.dp) 180.dp else side
 
             TicTacToeBoard(
@@ -83,8 +96,16 @@ fun TicTacToeScreen(
                 }
             )
         }
+
+        BottomBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            viewState = viewState
+        )
     }
 }
+*/
 
 @Composable
 private fun TopMenuBar(

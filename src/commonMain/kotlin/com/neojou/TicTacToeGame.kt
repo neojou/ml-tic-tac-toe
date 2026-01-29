@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import kotlin.random.Random
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
 
 private val TAG = "TicTacToeGame"
 
@@ -18,48 +19,58 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
     var state by remember { mutableStateOf(GameState()) }
     var gameCount by remember { mutableStateOf(0) }  // 追蹤學習場數
 
-    // NEW: 共享 table (記住一個實例)
-    val sharedTable = remember { QSTable() }
-
-    // 之後可換更強的 AI；若 AI 本身無狀態，這樣記住一個實例即可
-//    val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
-    //val aiPlayer = remember { QSTableAIPlayer() }
-    // MOD: aiPlayer 注入 sharedTable
+    // val aiPlayer = remember { FirstEmptyWithRecordAIPlayer() }
+    // val aiPlayer = remember { QSTableAIPlayer() }
     // val aiPlayer = remember { QSTableAIPlayer(myType = 2, table = sharedTable) }
-// 在 TicTacToeGame Composable 中替換
     val brain = remember { QLearnBrain() }
     val aiPlayer = remember { QLearnAIPlayer(myType = 2, brain = brain) } // UI 用 X
 
-// NEW: coroutine scope (非阻塞 self-play)
+    // NEW: coroutine scope (非阻塞 self-play)
     val scope = rememberCoroutineScope()
 
+    /*
+     *
+     */
     fun newGame() {
         // 新增：隨機決定誰先手 (1=O 人先, 2=X AI 先)
         val initialState = TicTacToeEngine.createInitialState(randomFirst = true)
         state = initialState
 
         aiPlayer.resetForGame()
-        //MyLog.add("New game - AI reset for game, first turn: ${TicTacToeRules.cellToChar(initialState.turn)}")
 
         // 如果 AI 先手 (turn==2)，立即讓 AI 下第一步
         if (initialState.turn == 2) {
             val aiFirstUpdate = TicTacToeEngine.aiFirstMove(initialState, aiPlayer)
             state = aiFirstUpdate.state
-            aiFirstUpdate.logs.forEach { }//MyLog.add(it) }
-            //MyLog.add("AI first move executed")
+            aiFirstUpdate.logs.forEach { MyLog.add(TAG,it, LogLevel.DEBUG) }
         }
+    }
+
+    fun training_AI(loops: Int, gamesPerLoop: Int) {
+        MyLog.add(TAG, "AI brain size before Training: ${aiPlayer.brain.size()}", LogLevel.DEBUG)
+        val trainStats = SelfPlaySandbox.trainMixed(
+            aiXFromUi = aiPlayer,
+            loops,
+            gamesPerLoop,   // 每個 loop 總訓練盤數；其中 80% self-play + 20% random
+            selfPlayRatio = 0.8,
+            onProgress = { _, _ -> } // 不逐局印
+        )
+        MyLog.add(TAG, "Training done - SelfPlay winRate: ${trainStats.selfPlayWinRate * 100}%", LogLevel.DEBUG)
     }
 
     fun onCellClick(pos: Int) {
         val update = TicTacToeEngine.onCellClick(state, pos, aiPlayer)
-        update.logs.forEach { }//MyLog.add(it) }
+        update.logs.forEach { MyLog.add(TAG, it, LogLevel.DEBUG) }
         state = update.state
+
         if (state.gameOver) {
             aiPlayer.refine(state.iGameResult)
-            aiPlayer.decayEpsilon()
-            aiPlayer.showRecords()
-            gameCount++  // 遊戲結束學習後計數 +1
-            //MyLog.add("Game learned: total count = $gameCount")
+
+            scope.launch {
+                training_AI(5, 300)
+                delay(3000)
+                newGame()
+            }
         }
     }
 
@@ -76,22 +87,11 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
         MyLog.add(TAG, "Analyzed records")
     }
 
+
     fun onGoHome() {
-        val trainLoops = 5
-        val trainEach = 200
-        val evalXSecond = 1000
-        val evalOFirst = 1000
 
         scope.launch {
-            MyLog.add(TAG, "AI brain size before Training: ${aiPlayer.brain.size()}", LogLevel.DEBUG)
-            val trainStats = SelfPlaySandbox.trainMixed(
-                aiXFromUi = aiPlayer,
-                loops = 5,
-                gamesPerLoop = 500,   // 每個 loop 總訓練盤數；其中 80% self-play + 20% random
-                selfPlayRatio = 0.8,
-                onProgress = { _, _ -> } // 不逐局印
-            )
-            MyLog.add(TAG, "Training done - SelfPlay winRate: ${trainStats.selfPlayWinRate * 100}%", LogLevel.DEBUG)
+            training_AI(5, 500)
 
             val aiO = QLearnAIPlayer(myType = 1, brain = aiPlayer.brain)
             val eval = SelfPlaySandbox.evalVsRandomSummary(
@@ -112,13 +112,13 @@ fun TicTacToeGame(modifier: Modifier = Modifier) {
 
     TicTacToeScreen(
         board = state.board,
-        viewState = viewState,
+        //viewState = viewState,
         modifier = modifier,
         onCellClick = ::onCellClick,
-        onNewGame = ::newGame,
-        onForget = ::onForget,
-        onAnalyze = ::onAnalyze,
-        onGoHome = ::onGoHome,  // NEW: 傳入
-        gameCount = gameCount
+        //onNewGame = ::newGame,
+        //onForget = ::onForget,
+        //onAnalyze = ::onAnalyze,
+        //onGoHome = ::onGoHome,  // NEW: 傳入
+        //gameCount = gameCount
     )
 }
